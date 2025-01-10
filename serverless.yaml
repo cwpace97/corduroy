@@ -1,0 +1,104 @@
+service: corduroy-v1
+
+package:
+  individually: true
+  exclude:
+    - venv/**
+    - chromedriver-win64/**
+    - tests/**
+    - "*.zip"
+    - "*.ipynb"
+    - "*.yaml"
+    - "*.sh"
+
+provider:
+  name: aws
+  runtime: python3.12
+
+functions:
+  rdsLambda:
+    name: rds-lambda-v1
+    package:
+      artifact: s3://cwpace97-lambda-deployments/rds-lambda/rds_lambda.zip
+    handler: rds_lambda.lambda_handler
+    memorySize: 512
+    timeout: 300
+    events:
+    - sqs:
+        arn: !GetAtt rdsLambdaSQSQueue.Arn
+        batchSize: 1
+        enabled: true
+    vpc:
+      securityGroupIds:
+        - !Ref LambdaSecurityGroup
+      subnetIds:
+        - subnet-011cba717e86b2164 #TODO
+        - subnet-079244f582887fb0d #TODO
+    # role: !GatAttAWSLambdaVPCAccessExecutionRole
+
+  # seleniumCopper:
+  #   handler: copper.lambda_handler
+  #   name: copper-scraper-v1
+  #   memorySize: 512
+  #   timeout: 300
+  #   environment:
+  #     RDS_LAMBDA_TOPIC: !Ref rdsLambdaSNSTopic
+
+resources:
+  Resources:
+    SNStoSQSPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+        - Ref: rdsLambdaSQSQueue
+        PolicyDocument:
+          Statement:
+            - Sid: "Allow All SNS to Publish to All SQS"
+              Effect: Allow
+              Principal:
+                Service: 'sns.amazonaws.com'
+              Resource: 'arn:aws:sqs:us-east-1:717279707480:sqs-*'
+              Action: sqs:sendMessage
+              Condition:
+                ArnEquals:
+                  aws:SourceArn:
+                    - 'arn:aws:sns:us-east-1:717279707480:sns-*'
+    PublishToSNSPolicy:
+      Type: AWS::SNS::TopicPolicy
+      Properties:
+        PolicyDocument:
+          Statement:
+          - Sid: "Allow Publish to SNS"
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Action: 
+            - sns:Publish
+            - sns:Subscribe
+            Resource: "*"
+        Topics:
+          - Ref: rdsLambdaSNSTopic
+    LambdaSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Security group for Lambda function
+        VpcId: vpc-0e18b1105fb31aa67 #TODO
+    
+    rdsLambdaSQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: 'sqs-rds-data-queue'
+        VisibilityTimeout: 360
+    rdsLambdaSNSTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: 'sns-rds-data-topic'
+        Subscription:
+          - Protocol: sqs
+            Endpoint: !GetAtt rdsLambdaSQSQueue.Arn
+        DeliveryStatusLogging:
+          - Protocol: sqs
+            SuccessFeedbackSampleRate: 30
+            SuccessFeedbackRoleArn: arn:aws:iam::717279707480:role/SNSSuccessFeedback #TODO: add this role to CF
+            FailureFeedbackRoleArn: arn:aws:iam::717279707480:role/SNSFailureFeedback #TODO: add this role to CF
+ 
