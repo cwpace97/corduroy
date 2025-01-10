@@ -4,3 +4,4 @@ venv/*
 */python_libs/
 chromedriver-win64.zip
 deployment_package.zip
+.ipynb
