@@ -14,6 +14,10 @@ package:
 provider:
   name: aws
   runtime: python3.12
+  iam:
+    role:
+      managedPolicies:
+        - !Ref LambdaExecutionRole
 
 functions:
   rdsLambda:
@@ -23,6 +27,8 @@ functions:
     handler: rds_lambda.lambda_handler
     memorySize: 512
     timeout: 300
+    environment:
+      RDS_CONNECTION_SECRET: lambda-service-account
     events:
     - sqs:
         arn: !GetAtt rdsLambdaSQSQueue.Arn
@@ -34,7 +40,7 @@ functions:
       subnetIds:
         - subnet-011cba717e86b2164 #TODO
         - subnet-079244f582887fb0d #TODO
-    # role: !GatAttAWSLambdaVPCAccessExecutionRole
+    # role: !Get AttAWSLambdaVPCAccessExecutionRole
 
   # seleniumCopper:
   #   handler: copper.lambda_handler
@@ -46,6 +52,35 @@ functions:
 
 resources:
   Resources:
+    LambdaExecutionRole:
+      Type: AWS::IAM::ManagedPolicy
+      Properties:
+        ManagedPolicyName: "lambda-execution-policy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: 
+                - secretsmanager:GetResourcePolicy
+                - secretsmanager:GetSecretValue
+                - secretsmanager:DescribeSecret
+                - secretsmanager:ListSecretVersionIds
+              Resource:
+                - !Ref LambdaServiceSecret
+            - Effect: Allow
+              Action:
+                - secretsmanager:ListSecrets
+              Resource:
+                - "*"
+    LambdaServiceSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: "lambda-service-account"
+        GenerateSecretString:
+          SecretStringTemplate: '{"host": "cwp-db-instance.cnag64oy6f2k.us-east-1.rds.amazonaws.com", "username": "lambda-service-account", "dbname": "cwpdb", "port": "3306"}'
+          GenerateStringKey: password
+          PasswordLength: 15
+          ExcludeCharacters: "\"'/@\\"
     SNStoSQSPolicy:
       Type: AWS::SQS::QueuePolicy
       Properties:
@@ -56,13 +91,13 @@ resources:
             - Sid: "Allow All SNS to Publish to All SQS"
               Effect: Allow
               Principal:
-                Service: 'sns.amazonaws.com'
-              Resource: 'arn:aws:sqs:us-east-1:717279707480:sqs-*'
+                Service: "sns.amazonaws.com"
+              Resource: "arn:aws:sqs:us-east-1:717279707480:sqs-*"
               Action: sqs:sendMessage
               Condition:
                 ArnEquals:
                   aws:SourceArn:
-                    - 'arn:aws:sns:us-east-1:717279707480:sns-*'
+                    - "arn:aws:sns:us-east-1:717279707480:sns-*"
     PublishToSNSPolicy:
       Type: AWS::SNS::TopicPolicy
       Properties:
@@ -87,12 +122,12 @@ resources:
     rdsLambdaSQSQueue:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: 'sqs-rds-data-queue'
+        QueueName: "sqs-rds-data-queue"
         VisibilityTimeout: 360
     rdsLambdaSNSTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: 'sns-rds-data-topic'
+        TopicName: "sns-rds-data-topic"
         Subscription:
           - Protocol: sqs
             Endpoint: !GetAtt rdsLambdaSQSQueue.Arn
