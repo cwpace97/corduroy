@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import pymysql
 import boto3
@@ -7,46 +8,89 @@ from botocore.config import Config as BotoConfig
 import pymysql.cursors
 
 def lambda_handler(event, context):
-    print(f"received event: {event}")
-    obj = preprocess_incoming_event(event)
-    print(obj)
+    try:
+        print(f"received event: {event}")
+        obj, topic = preprocess_incoming_event(event)
+        secret_name = os.environ.get("RDS_CONNECTION_SECRET")
+        connection = build_connection_obj(secret_name)
+        
+        lifts = obj.get("lifts", [])
+        runs = obj.get("runs", [])
+        location = obj.get("location", "No_Location")
+        date = obj.get("updatedDate", "1990-01-01")
 
-    secret_name = os.environ.get('RDS_CONNECTION_SECRET')
-    connection = build_connection_obj(secret_name)
+        # handle lifts
+        resp = update_lifts(connection, lifts, location, date)
+        print(resp)
 
-    print("normal query")
-    sql = "SELECT CURRENT_USER();"
+        # handle runs
+        resp = update_runs(connection, runs, location, date)
+        print(resp)
+
+
+    except Exception as e:
+        print("generic exception received, returning 202")
+        print(e)
+        return {
+            "statusCode": 202,
+            "body": "Exception raised, returning 202 to remove message from SQS queue..."
+        } 
+    finally:
+        return {
+            "statusCode": 200,
+            "body": "Function executed successfully"
+        }
+
+def update_lifts(connection, lifts, location, date):
+    print("Updating lifts table")
+    sql = """
+        INSERT INTO cwpdb.lifts_stg (location, lift_name, lift_type, lift_status, updated_date)
+        VALUES """
+    vals = ""
+
+    for lift in lifts:
+        txt = '("%s", "%s", "%s", %s, "%s"),' % (
+            location, 
+            lift.get("Lift_Name", "N/A"), 
+            lift.get("Lift_Type", "N/A"),
+            lift.get("Lift_Status", False), 
+            date)
+        vals += txt
+    vals = vals[:-1]+";"
+    sql += vals
+
     resp = execute_sql(connection, sql)
-    print(f"RESPONSE: {resp}")
+    return resp
 
-    print("error query")
-    sql = "SELECT CURENT_USER();"
+def update_runs(connection, runs, location, date):
+    print("Updating runs table")
+    sql = """
+        INSERT INTO cwpdb.runs_stg (location, run_name, run_difficulty, run_status, updated_date)
+        VALUES """
+    vals = ""
+
+    for run in runs:
+        txt = '("%s", "%s", "%s", %s, "%s"),' % (
+            location, 
+            run.get("Run_Name", "N/A"), 
+            run.get("Run_Difficulty", "N/A"),
+            run.get("Run_Status", False), 
+            date)
+        vals += txt
+    vals = vals[:-1]+";"
+    sql += vals
+    print(sql)
+
     resp = execute_sql(connection, sql)
-
-
-
-    return {
-        "statusCode": 200
-    }
+    return resp
 
 def preprocess_incoming_event(event):
     sns_message = json.loads(event["Records"][0]["body"])
+    topic_arn = sns_message.get("TopicArn")
+    pattern = "(?!.*:)(.*)$"
+    topic = re.search(pattern, topic_arn).group()
     object = json.loads(sns_message["Message"])
-    return object
-
-def parse_information(obj):
-    lifts = obj.get("lifts", [])
-    runs = obj.get("runs", [])
-    location = obj.get("mountain", "No_Location")
-    date = obj.get("updatedDate", "1990-01-01")
-    # message = {
-    #     "updatedDate": formatted,
-    #     "mountain": "copper",
-    #     "lifts": lifts_set,
-    #     "runs": runs_set
-    # }
-
-    print(obj)
+    return object, topic
 
 def get_secret(secret_name):
     print("Gathering secret...")
@@ -62,7 +106,7 @@ def get_secret(secret_name):
     # Create a Secrets Manager client
     session = boto3.session.Session()
     client = session.client(
-        service_name='secretsmanager',
+        service_name="secretsmanager",
         region_name=region_name,
         config = boto_config
     )
@@ -75,7 +119,7 @@ def get_secret(secret_name):
         print("Timed out grabbing secret...")
         raise e
     except Exception as e:
-        print('general exception raised')
+        print("general exception raised")
         raise e
     return get_secret_value_response["SecretString"]
 
@@ -87,7 +131,7 @@ def build_connection_obj(secret_name):
         user = secret_value.get("username"),
         password = secret_value.get("password"),
         db = secret_value.get("dbname"),
-        charset = 'utf8mb4',
+        charset = "utf8mb4",
         cursorclass=pymysql.cursors.DictCursor
     )
     print("Connected")
@@ -96,8 +140,9 @@ def build_connection_obj(secret_name):
 def execute_sql(connection, sql_statement):
     cursor = connection.cursor()
     resp = cursor.execute(sql_statement)
-    print(resp)
+    print(f"{resp} rows affected")
     results = cursor.fetchall()
+    connection.commit()
     return results
 
 def select_query(connection, sql_statement):

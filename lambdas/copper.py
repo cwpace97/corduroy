@@ -108,7 +108,7 @@ def lambda_handler(event, context):
     formatted = now.strftime("%Y-%m-%d")
     message = {
         "updatedDate": formatted,
-        "mountain": "copper",
+        "location": "copper",
         "lifts": lifts_set,
         "runs": runs_set
     }
