@@ -18,7 +18,10 @@ provider:
     role:
       managedPolicies:
         - !Ref LambdaExecutionRole
-
+  ecr:
+    images:
+      copperImage: #TODO: make the digest a param
+        uri: 717279707480.dkr.ecr.us-east-1.amazonaws.com/docker-images@sha256:bef66b6a9b10b230ecf56b36481503ec6c6ffc7d44173fa4b3205604d02be105 #TODO, acct id and "latest"
 functions:
   rdsLambda:
     name: rds-lambda-v1
@@ -29,6 +32,9 @@ functions:
     timeout: 300
     environment:
       RDS_CONNECTION_SECRET: lambda-service-account
+      SKI_DATABASE: cwpdb
+      RUNS_TABLE: runs_stg
+      LIFTS_TABLE: lifts_stg
     events:
     - sqs:
         arn: !GetAtt rdsLambdaSQSQueue.Arn
@@ -42,13 +48,18 @@ functions:
         - subnet-079244f582887fb0d #TODO
     # role: !Get AttAWSLambdaVPCAccessExecutionRole
 
-  # seleniumCopper:
-  #   handler: copper.lambda_handler
-  #   name: copper-scraper-v1
-  #   memorySize: 512
-  #   timeout: 300
-  #   environment:
-  #     RDS_LAMBDA_TOPIC: !Ref rdsLambdaSNSTopic
+  copperScraper:
+    name: copper-data-v1
+    image:
+      name: copperImage
+    memorySize: 512
+    timeout: 300
+    environment:
+      RDS_LAMBDA_TOPIC: !Ref rdsLambdaSNSTopic
+    events:
+      - schedule:
+        name: "copper-daily-schedule"
+        rate: cron(0 13 * 10-12,1-5 *)
 
 resources:
   Resources:
@@ -72,6 +83,10 @@ resources:
                 - secretsmanager:ListSecrets
               Resource:
                 - "*"
+            - Effect: Allow
+              Action:
+                - ecr:* #TODO: refine
+              Resource: arn:aws:ecr:us-east-1:717279707480:repository/docker-images
     LambdaServiceSecret:
       Type: AWS::SecretsManager::Secret
       Properties:

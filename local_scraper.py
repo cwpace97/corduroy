@@ -4,6 +4,7 @@ from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 import pandas as pd
 from datetime import datetime as dt
+import json
 
 # X PATH SYNTAX
 # //tagName[@AttributeName="Value"]
@@ -75,13 +76,14 @@ def lambda_handler(event, context):
     runs_set = {each['Run_Name'] : each for each in runs}.values()
     now = dt.today()
     formatted = now.strftime("%Y-%m-%d")
-    
-    df_runs = pd.json_normalize(runs_set)
-    df_runs['Updated_Date'] = formatted
-    
-    df_lifts = pd.json_normalize(lifts_set)
-    df_lifts['Updated_Date'] = formatted
-    # DRIVER.quit()
+    message = {
+        "updatedDate": formatted,
+        "location": "copper",
+        "lifts": lifts_set,
+        "runs": runs_set
+    }
+    print(message)
+    json_string = json.dumps(message)
 
 def isElementPresent(driver, lookupType, locatorKey):
     try:

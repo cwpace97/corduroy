@@ -14,9 +14,10 @@ RUN rm ./chrome-installer.sh
 # Install selenium
 RUN pip install selenium
 RUN pip install pandas
+RUN pip install boto3
 
 # Copy the main application code
-COPY copper.py ./
+COPY lambdas/copper.py ./
 
 # Command to run the Lambda function
 CMD [ "copper.lambda_handler" ]

@@ -7,11 +7,15 @@ from botocore.exceptions import ConnectTimeoutError, ClientError
 from botocore.config import Config as BotoConfig
 import pymysql.cursors
 
+secret_name = os.environ.get("RDS_CONNECTION_SECRET")
+ski_db = os.environ.get("SKI_DATABASE")
+runs_table = os.environ.get("RUNS_TABLE")
+lifts_table = os.environ.get("LIFTS_TABLE")
+
 def lambda_handler(event, context):
     try:
         print(f"received event: {event}")
         obj, topic = preprocess_incoming_event(event)
-        secret_name = os.environ.get("RDS_CONNECTION_SECRET")
         connection = build_connection_obj(secret_name)
         
         lifts = obj.get("lifts", [])
@@ -43,8 +47,8 @@ def lambda_handler(event, context):
 
 def update_lifts(connection, lifts, location, date):
     print("Updating lifts table")
-    sql = """
-        INSERT INTO cwpdb.lifts_stg (location, lift_name, lift_type, lift_status, updated_date)
+    sql = f"""
+        INSERT INTO {ski_db}.{lifts_table} (location, lift_name, lift_type, lift_status, updated_date)
         VALUES """
     vals = ""
 
@@ -64,8 +68,8 @@ def update_lifts(connection, lifts, location, date):
 
 def update_runs(connection, runs, location, date):
     print("Updating runs table")
-    sql = """
-        INSERT INTO cwpdb.runs_stg (location, run_name, run_difficulty, run_status, updated_date)
+    sql = f"""
+        INSERT INTO {ski_db}.{runs_table} (location, run_name, run_difficulty, run_status, updated_date)
         VALUES """
     vals = ""
 
