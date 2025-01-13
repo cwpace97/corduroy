@@ -79,11 +79,11 @@ def lambda_handler(event, context):
     message = {
         "updatedDate": formatted,
         "location": "copper",
-        "lifts": lifts_set,
-        "runs": runs_set
+        "lifts": list(lifts_set),
+        "runs": list(runs_set)
     }
-    print(message)
     json_string = json.dumps(message)
+    print(json_string)
 
 def isElementPresent(driver, lookupType, locatorKey):
     try:
