@@ -69,7 +69,10 @@ def lambda_handler(event, context):
             # print(run.text)
             if isElementPresent(run, By.XPATH, ".//*[name()='td'][@class='type']"):
                 #TODO
-                lift_name, lift_status, lift_type = None, None, None
+                lift_name = "None"
+                lift_status = False
+                lift_type = "None"
+                
                 lift_name = run.find_element(By.CLASS_NAME, "name").get_attribute("innerHTML")
                 lift_status = isElementPresent(run, By.XPATH, ".//*[name()='path'][@fill='#8BC53F']")
                 lift_type = run.find_element(By.CLASS_NAME, "type").get_attribute("innerHTML")
@@ -83,7 +86,9 @@ def lambda_handler(event, context):
 
             else:
                 # reset vars
-                run_name, run_status, run_difficulty = None, None, None
+                run_name = "None"
+                run_status = False
+                run_difficulty = "None"
 
                 run_name = run.find_element(By.CLASS_NAME, "name").get_attribute("innerHTML")
                 run_status = isElementPresent(run, By.XPATH, ".//*[name()='path'][@fill='#8BC53F']") 

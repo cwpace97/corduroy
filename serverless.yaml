@@ -202,7 +202,9 @@ resources:
             - Effect: Allow
               Action:
                 - dynamodb:* #TODO: refine
-              Resource: !GetAtt SkiRunsDynamoTable.Arn
+              Resource: 
+              - !GetAtt SkiRunsDynamoTable.Arn
+              - !GetAtt SkiLiftsDynamoTable.Arn
             # - Effect: Allow
             #   Action: 
             #     - secretsmanager:GetResourcePolicy
