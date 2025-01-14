@@ -75,9 +75,9 @@ def lambda_handler(event, context):
                 lift_type = run.find_element(By.CLASS_NAME, "type").get_attribute("innerHTML")
                 
                 lift_obj = {
-                    "Lift_Name": lift_name,
-                    "Lift_Type": lift_type,
-                    "Lift_Status": lift_status,
+                    "liftName": lift_name,
+                    "liftType": lift_type,
+                    "liftStatus": lift_status,
                 }
                 lifts.append(lift_obj)
 
@@ -98,9 +98,9 @@ def lambda_handler(event, context):
                 except NoSuchElementException as e:
                     print("unable to find difficulty")
                 run_obj = {
-                    "Run_Name": run_name,
-                    "Run_Status": run_status,
-                    "Run_Difficulty": run_difficulty,
+                    "runName": run_name,
+                    "runStatus": run_status,
+                    "runDifficulty": run_difficulty,
                 }
                 runs.append(run_obj)
         
@@ -110,8 +110,8 @@ def lambda_handler(event, context):
         print(runs)
 
         # prep for export/update
-        lifts_set = {each['Lift_Name'] : each for each in lifts}.values()
-        runs_set = {each['Run_Name'] : each for each in runs}.values()
+        lifts_set = {each['liftName'] : each for each in lifts}.values()
+        runs_set = {each['runName'] : each for each in runs}.values()
         now = dt.today()
         formatted = now.strftime("%Y-%m-%d")
         message = {

@@ -20,33 +20,24 @@ provider:
         - !Ref LambdaExecutionRole
   ecr:
     images:
-      copperImage: #TODO: make the digest a param
-        uri: 717279707480.dkr.ecr.us-east-1.amazonaws.com/docker-images@sha256:bef66b6a9b10b230ecf56b36481503ec6c6ffc7d44173fa4b3205604d02be105 #TODO, acct id and "latest"
+      copperImage:
+        uri: 717279707480.dkr.ecr.us-east-1.amazonaws.com/docker-images:latest
 functions:
-  rdsLambda:
-    name: rds-lambda-v1
+  dynamoLambda:
+    name: dynamo-lambda-v1
     package:
-      artifact: s3://cwpace97-lambda-deployments/rds-lambda/rds_lambda.zip
-    handler: rds_lambda.lambda_handler
+      artifact: s3://cwpace97-lambda-deployments/dynamo-lambda/dynamo_lambda.zip
+    handler: dynamo_lambda.lambda_handler
     memorySize: 512
     timeout: 300
     environment:
-      RDS_CONNECTION_SECRET: lambda-service-account
-      SKI_DATABASE: cwpdb
-      RUNS_TABLE: runs_stg
-      LIFTS_TABLE: lifts_stg
+      RUNS_TABLE: !Ref SkiRunsDynamoTable
+      LIFTS_TABLE: !Ref SkiLiftsDynamoTable
     events:
     - sqs:
-        arn: !GetAtt rdsLambdaSQSQueue.Arn
+        arn: !GetAtt dynamoLambdaSQSQueue.Arn
         batchSize: 1
         enabled: true
-    vpc:
-      securityGroupIds:
-        - !Ref LambdaSecurityGroup
-      subnetIds:
-        - subnet-011cba717e86b2164 #TODO
-        - subnet-079244f582887fb0d #TODO
-    # role: !Get AttAWSLambdaVPCAccessExecutionRole
 
   copperScraper:
     name: copper-data-v1
@@ -55,7 +46,7 @@ functions:
     memorySize: 512
     timeout: 300
     environment:
-      RDS_LAMBDA_TOPIC: !Ref rdsLambdaSNSTopic
+      RDS_LAMBDA_TOPIC: !Ref dynamoLambdaSNSTopic
     events:
       - schedule:
         name: "copper-daily-schedule"
@@ -63,6 +54,140 @@ functions:
 
 resources:
   Resources:
+    #DYNAMO TABLES FOR STORING INFORMATION
+    SkiRunsDynamoTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: "ski-runs-fact-table-dynamo"
+        AttributeDefinitions:
+          - AttributeName: location
+            AttributeType: S
+          - AttributeName: runName
+            AttributeType: S
+          - AttributeName: runDifficulty
+            AttributeType: S
+          - AttributeName: runStatus
+            AttributeType: S #TODO?
+          - AttributeName: updatedDate
+            AttributeType: S
+        KeySchema:
+          - AttributeName: runName
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        GlobalSecondaryIndexes:
+          - IndexName: "location-gsi"
+            KeySchema:
+              - AttributeName: location
+                KeyType: HASH
+              - AttributeName: updatedDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "run-name-gsi"
+            KeySchema:
+              - AttributeName: runName
+                KeyType: HASH
+              - AttributeName: updatedDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "run-difficulty-gsi"
+            KeySchema:
+              - AttributeName: runDifficulty
+                KeyType: HASH
+              - AttributeName: updatedDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "run-status-gsi"
+            KeySchema:
+              - AttributeName: runStatus
+                KeyType: HASH
+              - AttributeName: updatedDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+    SkiLiftsDynamoTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: "ski-lifts-fact-table-dynamo"
+        AttributeDefinitions:
+          - AttributeName: location
+            AttributeType: S
+          - AttributeName: liftName
+            AttributeType: S
+          - AttributeName: liftType
+            AttributeType: S
+          - AttributeName: liftStatus
+            AttributeType: S #TODO?
+          - AttributeName: updatedDate
+            AttributeType: S
+        KeySchema:
+          - AttributeName: liftName
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        GlobalSecondaryIndexes:
+          - IndexName: "location-gsi"
+            KeySchema:
+              - AttributeName: location
+                KeyType: HASH
+              - AttributeName: updatedDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "lift-name-gsi"
+            KeySchema:
+              - AttributeName: liftName
+                KeyType: HASH
+              - AttributeName: updatedDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "lift-type-gsi"
+            KeySchema:
+              - AttributeName: liftType
+                KeyType: HASH
+              - AttributeName: updatedDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+          - IndexName: "lift-status-gsi"
+            KeySchema:
+              - AttributeName: liftStatus
+                KeyType: HASH
+              - AttributeName: updatedDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 5
+              WriteCapacityUnits: 5
+    
     LambdaExecutionRole:
       Type: AWS::IAM::ManagedPolicy
       Properties:
@@ -71,36 +196,33 @@ resources:
           Version: "2012-10-17"
           Statement:
             - Effect: Allow
-              Action: 
-                - secretsmanager:GetResourcePolicy
-                - secretsmanager:GetSecretValue
-                - secretsmanager:DescribeSecret
-                - secretsmanager:ListSecretVersionIds
-              Resource:
-                - !Ref LambdaServiceSecret
-            - Effect: Allow
-              Action:
-                - secretsmanager:ListSecrets
-              Resource:
-                - "*"
-            - Effect: Allow
               Action:
                 - ecr:* #TODO: refine
               Resource: arn:aws:ecr:us-east-1:717279707480:repository/docker-images
-    LambdaServiceSecret:
-      Type: AWS::SecretsManager::Secret
-      Properties:
-        Name: "lambda-service-account"
-        GenerateSecretString:
-          SecretStringTemplate: '{"host": "cwp-db-instance.cnag64oy6f2k.us-east-1.rds.amazonaws.com", "username": "lambda-service-account", "dbname": "cwpdb", "port": "3306"}'
-          GenerateStringKey: password
-          PasswordLength: 15
-          ExcludeCharacters: "\"'/@\\"
+            - Effect: Allow
+              Action:
+                - dynamodb:* #TODO: refine
+              Resource: !GetAtt SkiRunsDynamoTable.Arn
+            # - Effect: Allow
+            #   Action: 
+            #     - secretsmanager:GetResourcePolicy
+            #     - secretsmanager:GetSecretValue
+            #     - secretsmanager:DescribeSecret
+            #     - secretsmanager:ListSecretVersionIds
+            #   Resource:
+            #     - !Ref LambdaServiceSecret
+            # - Effect: Allow
+            #   Action:
+            #     - secretsmanager:ListSecrets
+            #   Resource:
+            #     - "*"
+            
+
     SNStoSQSPolicy:
       Type: AWS::SQS::QueuePolicy
       Properties:
         Queues:
-        - Ref: rdsLambdaSQSQueue
+        - Ref: dynamoLambdaSQSQueue
         PolicyDocument:
           Statement:
             - Sid: "Allow All SNS to Publish to All SQS"
@@ -127,25 +249,20 @@ resources:
             - sns:Subscribe
             Resource: "*"
         Topics:
-          - Ref: rdsLambdaSNSTopic
-    LambdaSecurityGroup:
-      Type: AWS::EC2::SecurityGroup
-      Properties:
-        GroupDescription: Security group for Lambda function
-        VpcId: vpc-0e18b1105fb31aa67 #TODO
+          - Ref: dynamoLambdaSNSTopic
     
-    rdsLambdaSQSQueue:
+    dynamoLambdaSQSQueue:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: "sqs-rds-data-queue"
+        QueueName: "sqs-dynamo-data-queue"
         VisibilityTimeout: 360
-    rdsLambdaSNSTopic:
+    dynamoLambdaSNSTopic:
       Type: AWS::SNS::Topic
       Properties:
-        TopicName: "sns-rds-data-topic"
+        TopicName: "sns-dynamo-data-topic"
         Subscription:
           - Protocol: sqs
-            Endpoint: !GetAtt rdsLambdaSQSQueue.Arn
+            Endpoint: !GetAtt dynamoLambdaSQSQueue.Arn
         DeliveryStatusLogging:
           - Protocol: sqs
             SuccessFeedbackSampleRate: 30

@@ -1,66 +1,66 @@
 {
     "lifts": [
         {
-            "Lift_Name": "American Eagle",
-            "Lift_Type": "Telemix",
-            "Lift_Status": true
+            "liftName": "American Eagle",
+            "liftType": "Telemix",
+            "liftStatus": true
         },
         {
-            "Lift_Name": "American Flyer",
-            "Lift_Type": "Six Person",
-            "Lift_Status": true
+            "liftName": "American Flyer",
+            "liftType": "Six Person",
+            "liftStatus": true
         },
         {
-            "Lift_Name": "Excelerator",
-            "Lift_Type": "Quad",
-            "Lift_Status": false
+            "liftName": "Excelerator",
+            "liftType": "Quad",
+            "liftStatus": false
         },
         {
-            "Lift_Name": "Kokomo Express",
-            "Lift_Type": "Quad",
-            "Lift_Status": true
+            "liftName": "Kokomo Express",
+            "liftType": "Quad",
+            "liftStatus": true
         },
         {
-            "Lift_Name": "Lumberjack",
-            "Lift_Type": "Triple",
-            "Lift_Status": false
+            "liftName": "Lumberjack",
+            "liftType": "Triple",
+            "liftStatus": false
         }
     ],
     "runs": [
         {
-            "Run_Name": "Bridgeway",
-            "Run_Status": true,
-            "Run_Difficulty": "green"
+            "runName": "Bridgeway",
+            "runStatus": true,
+            "runDifficulty": "green"
         },
         {
-            "Run_Name": "CDL's Trail #20",
-            "Run_Status": true,
-            "Run_Difficulty": "black1"
+            "runName": "CDL's Trail #20",
+            "runStatus": true,
+            "runDifficulty": "black1"
         },
         {
-            "Run_Name": "Cache Glades",
-            "Run_Status": true,
-            "Run_Difficulty": "black1"
+            "runName": "Cache Glades",
+            "runStatus": true,
+            "runDifficulty": "black1"
         },
         {
-            "Run_Name": "Carefree (L)",
-            "Run_Status": false,
-            "Run_Difficulty": "blue"
+            "runName": "Carefree (L)",
+            "runStatus": false,
+            "runDifficulty": "blue"
         },
         {
-            "Run_Name": "Carefree (U)",
-            "Run_Status": true,
-            "Run_Difficulty": "green"
+            "runName": "Carefree (U)",
+            "runStatus": true,
+            "runDifficulty": "green"
         },
         {
-            "Run_Name": "Collage (L)",
-            "Run_Status": false,
-            "Run_Difficulty": "blue"
+            "runName": "Collage (L)",
+            "runStatus": false,
+            "runDifficulty": "blue"
         },
         {
-            "Run_Name": "Collage (U)",
-            "Run_Status": true,
-            "Run_Difficulty": "blue"
+            "runName": "Collage (U)",
+            "runStatus": true,
+            "runDifficulty": "blue"
         }
     ],
     "location": "copper",
