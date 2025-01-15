@@ -14,13 +14,14 @@ package:
 provider:
   name: aws
   runtime: python3.12
+  region: us-east-1
   iam:
     role:
       managedPolicies:
         - !Ref LambdaExecutionRole
   ecr:
     images:
-      copperImage:
+      scraperImage:
         uri: 717279707480.dkr.ecr.us-east-1.amazonaws.com/docker-images:latest
 functions:
   dynamoLambda:
@@ -39,18 +40,33 @@ functions:
         batchSize: 1
         enabled: true
 
+  # SCRAPER LAMBDAS
   copperScraper:
     name: copper-data-v1
     image:
-      name: copperImage
+      name: scraperImage
+      command: ["scraper.copper_handler"]
     memorySize: 512
     timeout: 300
     environment:
       RDS_LAMBDA_TOPIC: !Ref dynamoLambdaSNSTopic
     events:
       - schedule:
-        name: "copper-daily-schedule"
-        rate: cron(0 13 * 10-12,1-5 *)
+          name: "copper-daily-schedule"
+          rate: cron(0 13 * 10-12,1-5 ? *)
+  lovelandScraper:
+    name: loveland-data-v1
+    image:
+      name: scraperImage
+      command: ["scraper.loveland_handler"]
+    memorySize: 512
+    timeout: 300
+    environment:
+      RDS_LAMBDA_TOPIC: !Ref dynamoLambdaSNSTopic
+    events:
+      - schedule:
+          name: "loveland-daily-schedule"
+          rate: cron(0 13 * 10-12,1-5 ? *)
 
 resources:
   Resources:
@@ -58,8 +74,10 @@ resources:
     SkiRunsDynamoTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: "ski-runs-fact-table-dynamo"
+        TableName: "ski-runs-fact-table-dynamo-v2"
         AttributeDefinitions:
+          - AttributeName: location-run-date
+            AttributeType: S
           - AttributeName: location
             AttributeType: S
           - AttributeName: runName
@@ -71,7 +89,7 @@ resources:
           - AttributeName: updatedDate
             AttributeType: S
         KeySchema:
-          - AttributeName: runName
+          - AttributeName: location-run-date
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 5
@@ -124,8 +142,10 @@ resources:
     SkiLiftsDynamoTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: "ski-lifts-fact-table-dynamo"
+        TableName: "ski-lifts-fact-table-dynamo-v2"
         AttributeDefinitions:
+          - AttributeName: location-lift-date
+            AttributeType: S
           - AttributeName: location
             AttributeType: S
           - AttributeName: liftName
@@ -137,7 +157,7 @@ resources:
           - AttributeName: updatedDate
             AttributeType: S
         KeySchema:
-          - AttributeName: liftName
+          - AttributeName: location-lift-date
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 5

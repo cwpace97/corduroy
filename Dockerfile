@@ -17,7 +17,7 @@ RUN pip install pandas
 RUN pip install boto3
 
 # Copy the main application code
-COPY lambdas/copper.py ./
+COPY lambdas/scraper.py ./
 
 # Command to run the Lambda function
 CMD [ "copper.lambda_handler" ]
