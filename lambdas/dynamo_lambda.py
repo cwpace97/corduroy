@@ -50,6 +50,7 @@ def lambda_handler(event, context):
 def update_lifts(dynamodb, lifts, location, date):
     logger.info("Updating lifts table...")
     for lift in lifts:
+        lift['location-lift-date'] = f"{location}-{lift['liftName']}-{date}"
         lift['location'] = location
         lift['updatedDate'] = date
         lift['liftStatus'] = f"{lift['liftStatus']}"
@@ -58,6 +59,7 @@ def update_lifts(dynamodb, lifts, location, date):
 def update_runs(dynamodb, runs, location, date):
     logger.info("Updating runs table...")
     for run in runs:
+        run['location-run-date'] = f"{location}-{run['runName']}-{date}"
         run['location'] = location
         run['updatedDate'] = date
         run['runStatus'] = f"{run['runStatus']}"
