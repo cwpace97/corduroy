@@ -41,7 +41,7 @@ def handler(event, context):
                 if common.isElementPresent(run, By.XPATH, './/img[contains(@src, "beginner")]'):
                     run_difficulty = "green"
                 elif common.isElementPresent(run, By.XPATH, './/img[contains(@src, "more_difficult")]'):
-                    run_difficulty = "blue"
+                    run_difficulty = "blue1"
                 elif common.isElementPresent(run, By.XPATH, './/img[contains(@src, "most_difficult")]'):
                     run_difficulty = "black1"
                 elif common.isElementPresent(run, By.XPATH, './/img[contains(@src, "expert")]'):
@@ -57,9 +57,9 @@ def handler(event, context):
                     run_status=True
 
                 # GROOMING
-                groomed = False
+                run_groomed = False
                 if common.isElementPresent(run, By.XPATH, './/img[contains(@src, "grooming")]'):
-                    groomed=True
+                    run_groomed=True
 
                 # NAME
                 run_name = run.find_element(By.CLASS_NAME, "column-3").get_attribute("innerHTML")
@@ -67,12 +67,13 @@ def handler(event, context):
                 # AREA OF LOVELAND
                 run_area = run.find_element(By.CLASS_NAME, "column-5").get_attribute("innerHTML")
 
-                print(f"{run_name}, {run_area}, {run_difficulty}, {groomed}, {run_status}")
+                # print(f"{run_name}, {run_area}, {run_difficulty}, {run_groomed}, {run_status}")
                 run_obj = {
                     "runName": run_name,
                     "runStatus": run_status,
                     "runDifficulty": run_difficulty,
-                    "runArea": run_area
+                    "runArea": run_area,
+                    "runGroomed": run_groomed
                 }
                 runs.append(run_obj)
             except Exception as e:

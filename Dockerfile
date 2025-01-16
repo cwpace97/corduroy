@@ -14,6 +14,7 @@ RUN rm ./chrome-installer.sh
 # Install selenium
 RUN pip install selenium
 RUN pip install boto3
+RUN pip install pytz
 
 # Copy the main application code
 COPY lambdas/*.py ./

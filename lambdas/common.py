@@ -37,10 +37,10 @@ def prepareForExport(lifts, runs, location):
     return json.dumps(message)
 
 
-def isElementPresent(DRIVER, lookupType, locatorKey):
+def isElementPresent(driver, lookupType, locatorKey):
     try:
         # print("a")
-        DRIVER.find_element(lookupType, locatorKey)
+        driver.find_element(lookupType, locatorKey)
         return True
     except NoSuchElementException as nse:
         # print("b")
@@ -50,9 +50,7 @@ def isElementPresent(DRIVER, lookupType, locatorKey):
         # return isElementPresent(DRIVER, lookupType, locatorKey)
         return False
 
-def safeSearch(DRIVER, lookupType, locatorKey):
-    try:
-        element = DRIVER.find_element(lookupType, locatorKey)
-        return element
-    except NoSuchElementException as e:
-        return None
+def safeSearch(driver, lookupType, locatorKey):
+    if isElementPresent(driver, lookupType, locatorKey):
+        return driver.find_element(lookupType, locatorKey)
+    return False

@@ -71,7 +71,7 @@ def handler(event, context):
                 try:
                     difficulty_text = run.find_element(By.CLASS_NAME, "difficulty").find_element(By.TAG_NAME, "div").get_attribute("class")
                     if "icon difficulty-level-green" in difficulty_text: run_difficulty = "green"
-                    elif "icon difficulty-level-blue" in difficulty_text: run_difficulty = "blue"
+                    elif "icon difficulty-level-blue" in difficulty_text: run_difficulty = "blue1"
                     elif "icon difficulty-level-black-3" in difficulty_text: run_difficulty = "black3"
                     elif "icon difficulty-level-black-2" in difficulty_text: run_difficulty = "black2"
                     elif "icon difficulty-level-black" in difficulty_text: run_difficulty = "black1"

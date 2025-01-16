@@ -53,7 +53,7 @@ def update_lifts(dynamodb, lifts, location, date):
         lift['date-location-lift'] = f"{date}-{location}-{lift['liftName']}"
         lift['location'] = location
         lift['updatedDate'] = date
-        lift['liftStatus'] = f"{lift['liftStatus']}"
+        lift['liftStatus'] = f"{str(lift['liftStatus']).lower()}"
     return dynamo_batch_write_items(dynamodb, lifts_table, lifts)
 
 def update_runs(dynamodb, runs, location, date):
@@ -62,7 +62,7 @@ def update_runs(dynamodb, runs, location, date):
         run['date-location-run'] = f"{date}-{location}-{run['runName']}"
         run['location'] = location
         run['updatedDate'] = date
-        run['runStatus'] = f"{run['runStatus']}"
+        run['runStatus'] = f"{str(run['runStatus']).lower()}"
     return dynamo_batch_write_items(dynamodb, runs_table, runs)
     
 
