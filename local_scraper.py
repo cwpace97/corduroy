@@ -2,16 +2,12 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.chrome.options import Options as ChromeOptions
-import pandas as pd
 from datetime import datetime as dt
 import json
 
 # X PATH SYNTAX
 # //tagName[@AttributeName="Value"]
 # //span[@class="panel-icon"]
-
-CHECKMARK_COLOR = "#8BC53F"
-X_COLOR = "#D0021B"
 
 DRIVER = webdriver.Chrome()
 
@@ -38,9 +34,9 @@ def lambda_handler(event, context):
             lift_type = run.find_element(By.CLASS_NAME, "type").get_attribute("innerHTML")
             
             lift_obj = {
-                "Lift_Name": lift_name,
-                "Lift_Type": lift_type,
-                "Lift_Status": lift_status,
+                "liftName": lift_name,
+                "liftType": lift_type,
+                "liftStatus": lift_status,
             }
             lifts.append(lift_obj)
 

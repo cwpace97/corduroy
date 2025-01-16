@@ -45,11 +45,12 @@ functions:
     name: copper-data-v1
     image:
       name: scraperImage
-      command: ["scraper.copper_handler"]
+      command: ["scraper_copper.handler"] #TODO
     memorySize: 512
     timeout: 300
     environment:
       RDS_LAMBDA_TOPIC: !Ref dynamoLambdaSNSTopic
+      WEBSITE_URL: https://www.coppercolorado.com/the-mountain/trail-lift-info/winter-trail-report
     events:
       - schedule:
           name: "copper-daily-schedule"
@@ -58,11 +59,12 @@ functions:
     name: loveland-data-v1
     image:
       name: scraperImage
-      command: ["scraper.loveland_handler"]
+      command: ["scraper_loveland.handler"]
     memorySize: 512
     timeout: 300
     environment:
       RDS_LAMBDA_TOPIC: !Ref dynamoLambdaSNSTopic
+      WEBSITE_URL: https://skiloveland.com/trail-lift-report/
     events:
       - schedule:
           name: "loveland-daily-schedule"
@@ -74,9 +76,9 @@ resources:
     SkiRunsDynamoTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: "ski-runs-fact-table-dynamo-v2"
+        TableName: "ski-runs-fact-table-dynamo-v0"
         AttributeDefinitions:
-          - AttributeName: location-run-date
+          - AttributeName: date-location-run
             AttributeType: S
           - AttributeName: location
             AttributeType: S
@@ -85,11 +87,11 @@ resources:
           - AttributeName: runDifficulty
             AttributeType: S
           - AttributeName: runStatus
-            AttributeType: S #TODO?
+            AttributeType: S
           - AttributeName: updatedDate
             AttributeType: S
         KeySchema:
-          - AttributeName: location-run-date
+          - AttributeName: date-location-run
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 5
@@ -142,22 +144,20 @@ resources:
     SkiLiftsDynamoTable:
       Type: AWS::DynamoDB::Table
       Properties:
-        TableName: "ski-lifts-fact-table-dynamo-v2"
+        TableName: "ski-lifts-fact-table-dynamo-v0"
         AttributeDefinitions:
-          - AttributeName: location-lift-date
+          - AttributeName: date-location-lift
             AttributeType: S
           - AttributeName: location
             AttributeType: S
           - AttributeName: liftName
             AttributeType: S
-          - AttributeName: liftType
-            AttributeType: S
           - AttributeName: liftStatus
-            AttributeType: S #TODO?
+            AttributeType: S
           - AttributeName: updatedDate
             AttributeType: S
         KeySchema:
-          - AttributeName: location-lift-date
+          - AttributeName: date-location-lift
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 5
@@ -177,17 +177,6 @@ resources:
           - IndexName: "lift-name-gsi"
             KeySchema:
               - AttributeName: liftName
-                KeyType: HASH
-              - AttributeName: updatedDate
-                KeyType: RANGE
-            Projection:
-              ProjectionType: ALL
-            ProvisionedThroughput:
-              ReadCapacityUnits: 5
-              WriteCapacityUnits: 5
-          - IndexName: "lift-type-gsi"
-            KeySchema:
-              - AttributeName: liftType
                 KeyType: HASH
               - AttributeName: updatedDate
                 KeyType: RANGE
