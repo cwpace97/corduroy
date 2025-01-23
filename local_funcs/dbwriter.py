@@ -1,7 +1,4 @@
-import os
-import re
 import json
-import boto3
 import pymysql
 from botocore.exceptions import ConnectTimeoutError, ClientError
 from botocore.config import Config as BotoConfig
