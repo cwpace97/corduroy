@@ -1,10 +1,19 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import NoSuchElementException
 
 import local_common as common
 import dbwriter
 
-DRIVER = webdriver.Chrome()
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--disable-gpu")
+
+service = webdriver.ChromeService('/usr/bin/chromedriver')
+DRIVER = webdriver.Chrome(options=chrome_options, service=service)
+# DRIVER = webdriver.Chrome()
+
 print("starting...")
 web = "https://www.winterparkresort.com/the-mountain/mountain-report#lift-and-trail-status"
 DRIVER.get(web)
