@@ -24,25 +24,6 @@ provider:
       scraperImage:
         uri: 717279707480.dkr.ecr.us-east-1.amazonaws.com/docker-images:latest
 functions:
-  mysqlLambda:
-    name: mysql-lambda-v1
-    package:
-      artifact: s3://cwpace97-lambda-deployments/dynamo-lambda/db_lambda.zip
-    handler: db_lambda.lambda_handler
-    memorySize: 512
-    timeout: 300
-    environment:
-      RUNS_TABLE: "runs_stg"
-      LIFTS_TABLE: "lifts_stg"
-      HOST: "10.0.0.83"
-      DB: cwp
-      USER: cwpace97
-      PASSWORD: tmp
-    events:
-    - sqs:
-        arn: !GetAtt dynamoLambdaSQSQueue.Arn
-        batchSize: 1
-        enabled: true
   dynamoLambda:
     name: dynamo-lambda-v1
     package:
@@ -312,4 +293,3 @@ resources:
             SuccessFeedbackSampleRate: 30
             SuccessFeedbackRoleArn: arn:aws:iam::717279707480:role/SNSSuccessFeedback #TODO: add this role to CF
             FailureFeedbackRoleArn: arn:aws:iam::717279707480:role/SNSFailureFeedback #TODO: add this role to CF
- 

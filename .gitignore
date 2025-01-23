@@ -7,3 +7,4 @@ chromedriver-win64.zip
 deployment_package.zip
 chrome-installer.sh
 lambdas/__pycache__/*
+local_funcs/__pycache__/*

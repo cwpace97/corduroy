@@ -1,4 +1,4 @@
-import common
+import local_funcs.local_common as local_common
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
