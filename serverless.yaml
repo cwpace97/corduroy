@@ -1,3 +1,6 @@
+# MOVING AWAY FROM AWS CLOUD IMPLEMNTATION
+# KEEPING THIS AS REFERENCE FOR FUTURE PROJECTS
+
 service: corduroy-v1
 
 package:
@@ -22,7 +25,7 @@ provider:
   ecr:
     images:
       scraperImage:
-        uri: 717279707480.dkr.ecr.us-east-1.amazonaws.com/docker-images:latest
+        uri: "{ACCT_ID}.dkr.ecr.us-east-1.amazonaws.com/docker-images:latest"
 functions:
   dynamoLambda:
     name: dynamo-lambda-v1
@@ -221,7 +224,7 @@ resources:
             - Effect: Allow
               Action:
                 - ecr:* #TODO: refine
-              Resource: arn:aws:ecr:us-east-1:717279707480:repository/docker-images
+              Resource: arn:aws:ecr:us-east-1:{ACCT_ID}:repository/docker-images
             - Effect: Allow
               Action:
                 - dynamodb:* #TODO: refine
@@ -254,12 +257,12 @@ resources:
               Effect: Allow
               Principal:
                 Service: "sns.amazonaws.com"
-              Resource: "arn:aws:sqs:us-east-1:717279707480:sqs-*"
+              Resource: "arn:aws:sqs:us-east-1:{ACCT_ID}:sqs-*"
               Action: sqs:sendMessage
               Condition:
                 ArnEquals:
                   aws:SourceArn:
-                    - "arn:aws:sns:us-east-1:717279707480:sns-*"
+                    - "arn:aws:sns:us-east-1:{ACCT_ID}:sns-*"
     PublishToSNSPolicy:
       Type: AWS::SNS::TopicPolicy
       Properties:
@@ -291,5 +294,5 @@ resources:
         DeliveryStatusLogging:
           - Protocol: sqs
             SuccessFeedbackSampleRate: 30
-            SuccessFeedbackRoleArn: arn:aws:iam::717279707480:role/SNSSuccessFeedback #TODO: add this role to CF
-            FailureFeedbackRoleArn: arn:aws:iam::717279707480:role/SNSFailureFeedback #TODO: add this role to CF
+            SuccessFeedbackRoleArn: "arn:aws:iam::{ACCT_ID}:role/SNSSuccessFeedback" #TODO: add this role to CF
+            FailureFeedbackRoleArn: "arn:aws:iam::{ACCT_ID}:role/SNSFailureFeedback" #TODO: add this role to CF
