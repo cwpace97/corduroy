@@ -1,10 +1,5 @@
-*.serverless
 *.ipynb
-chromedriver-win64/*
-venv/*
-*/python_libs/
-chromedriver-win64.zip
-deployment_package.zip
-chrome-installer.sh
-lambdas/__pycache__/*
-local_funcs/__pycache__/*
+.venv/*
+scrapers/__pycache__/*
+*.db
+.cursorrules

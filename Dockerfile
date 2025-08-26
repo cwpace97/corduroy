@@ -1,23 +1,31 @@
-FROM amazon/aws-lambda-python:3.12
-# Install chrome dependencies
-RUN dnf install -y atk cups-libs gtk3 libXcomposite alsa-lib \
-    libXcursor libXdamage libXext libXi libXrandr libXScrnSaver \
-    libXtst pango at-spi2-atk libXt xorg-x11-server-Xvfb \
-    xorg-x11-xauth dbus-glib dbus-glib-devel nss mesa-libgbm jq unzip
+FROM ubuntu:22.04
 
-# Copy and run the chrome installer script
-COPY ./chrome-installer.sh ./chrome-installer.sh
-RUN chmod +x ./chrome-installer.sh
-RUN ./chrome-installer.sh
-RUN rm ./chrome-installer.sh
+# Set environment variables to avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Install selenium
-RUN pip install selenium
-RUN pip install boto3
-RUN pip install pytz
+# Update system and install dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy the main application code
-COPY lambdas/*.py ./
+# Set up working directory
+WORKDIR /app
 
-# Command to run the Lambda function
-CMD [ "scraper_copper.handler" ]
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY scrapers/ ./scrapers/
+COPY init_db.py .
+
+# Create data directory for database
+RUN mkdir -p /data
+
+# Set environment variables for database path
+ENV DB_PATH=/data/ski.db
+
+# Default command (can be overridden)
+CMD ["python3", "-c", "print('Ski scraper container ready. Use docker-compose to run specific scrapers.')"]

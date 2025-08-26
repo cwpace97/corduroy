@@ -1,0 +1,92 @@
+services:
+  # Database initialization service
+  db-init:
+    build: .
+    container_name: corduroy-db-init
+    environment:
+      - DB_PATH=/data/ski.db
+    volumes:
+      - ./ski.db:/data/ski.db
+    command: ["python3", "init_db.py"]
+    profiles:
+      - init
+
+  # Copper Mountain Scraper using pre-built Seleniarm
+  copper-scraper:
+    build: .
+    container_name: corduroy-copper-scraper
+    environment:
+      - WEBSITE_URL=https://www.coppercolorado.com/the-mountain/trail-lift-info/winter-trail-report
+      - DB_PATH=/data/ski.db
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./ski.db:/data/ski.db
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_copper.py"]
+    profiles:
+      - copper
+
+  # Loveland Scraper using pre-built Seleniarm
+  loveland-scraper:
+    build: .
+    container_name: corduroy-loveland-scraper
+    environment:
+      - WEBSITE_URL=https://skiloveland.com/trail-lift-report/
+      - DB_PATH=/data/ski.db
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./ski.db:/data/ski.db
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_loveland.py"]
+    profiles:
+      - loveland
+
+  # Winter Park Scraper using pre-built Seleniarm
+  winterpark-scraper:
+    build: .
+    container_name: corduroy-winterpark-scraper
+    environment:
+      - WEBSITE_URL=https://www.winterparkresort.com/the-mountain/mountain-report#lift-and-trail-status
+      - DB_PATH=/data/ski.db
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./ski.db:/data/ski.db
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_winterpark.py"]
+    profiles:
+      - winterpark
+
+  # ARM64 Selenium Hub
+  selenium-hub:
+    image: seleniarm/hub:latest
+    container_name: selenium-hub
+    ports:
+      - "4444:4444"
+    environment:
+      - GRID_MAX_SESSION=20
+      - GRID_BROWSER_TIMEOUT=30
+      - GRID_TIMEOUT=30
+
+  # ARM64 Chromium Node
+  chromium-node:
+    image: seleniarm/node-chromium:latest
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - NODE_MAX_SESSION=2
+      - NODE_MAX_INSTANCES=2
+    shm_size: '2g'
+
+# Note: Usage with Selenium Hub approach:
+# ./deploy.sh run copper    # Runs copper scraper with Selenium Grid
+# ./deploy.sh run loveland  # Runs loveland scraper with Selenium Grid  
+# ./deploy.sh run winterpark # Runs winterpark scraper with Selenium Grid 
