@@ -62,6 +62,23 @@ services:
     profiles:
       - winterpark
 
+  # Arapahoe Basin Scraper using pre-built Seleniarm
+  abasin-scraper:
+    build: .
+    container_name: corduroy-abasin-scraper
+    environment:
+      - WEBSITE_URL=https://www.arapahoebasin.com/snow-report/
+      - DB_PATH=/data/ski.db
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./ski.db:/data/ski.db
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_abasin.py"]
+    profiles:
+      - abasin
+
   # ARM64 Selenium Hub
   selenium-hub:
     image: seleniarm/hub:latest
@@ -89,4 +106,5 @@ services:
 # Note: Usage with Selenium Hub approach:
 # ./deploy.sh run copper    # Runs copper scraper with Selenium Grid
 # ./deploy.sh run loveland  # Runs loveland scraper with Selenium Grid  
-# ./deploy.sh run winterpark # Runs winterpark scraper with Selenium Grid 
+# ./deploy.sh run winterpark # Runs winterpark scraper with Selenium Grid
+# ./deploy.sh run abasin    # Runs arapahoe basin scraper with Selenium Grid 
