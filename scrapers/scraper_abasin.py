@@ -1,6 +1,8 @@
 import common
 import os
 import time
+import html
+import re
 from base_scraper import BaseScraper
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -58,30 +60,46 @@ class ArapahoeBasinScraper(BaseScraper):
             
             lifts = []
             
-            # Find all lift elements - they contain "(Lift)" in their text
-            # and are within span elements with class "d-flex align-items-center"
-            lift_spans = self.driver.find_elements(By.CSS_SELECTOR, "span.d-flex.align-items-center")
-            print(f"Found {len(lift_spans)} potential lift elements")
+            # Find all lift elements - they have class "primary-option lift-opt"
+            lift_elements = self.driver.find_elements(By.CSS_SELECTOR, "li.primary-option.lift-opt")
+            print(f"Found {len(lift_elements)} lift elements")
             
-            for span in lift_spans:
+            for lift_elem in lift_elements:
                 try:
+                    # Find the span with lift name and status
+                    try:
+                        span = lift_elem.find_element(By.CSS_SELECTOR, "span.d-flex.align-items-center")
+                    except:
+                        # Try alternative selector if the first one fails
+                        try:
+                            span = lift_elem.find_element(By.CSS_SELECTOR, "div.border-primary span")
+                        except:
+                            print(f"  ⚠️ Could not find span in lift element")
+                            continue
+                    
                     text = span.text.strip()
                     
-                    # Check if this is a lift element
-                    if "(Lift)" not in text:
+                    # Check if this is a lift element (case-insensitive)
+                    if "(lift)" not in text.lower():
+                        print(f"  ⚠️ Skipping element without '(Lift)': {text[:50]}")
                         continue
                     
-                    # Extract lift name (remove "(Lift)" suffix)
-                    lift_name = text.replace("(Lift)", "").strip()
+                    # Extract lift name (remove "(Lift)" suffix - case-insensitive)
+                    # Handle both "(Lift)" and "(LIFT)"
+                    lift_name = re.sub(r'\s*\(lift\)\s*$', '', text, flags=re.IGNORECASE).strip()
+                    
+                    # Clean up HTML entities (e.g., &#39; becomes ')
+                    lift_name = html.unescape(lift_name)
                     
                     if not lift_name or len(lift_name) < 3:
+                        print(f"  ⚠️ Skipping invalid lift name: '{lift_name}'")
                         continue
                     
-                    # Get status from image
-                    status_img = span.find_elements(By.TAG_NAME, "img")
+                    # Get status from image within the span
+                    status_imgs = span.find_elements(By.TAG_NAME, "img")
                     is_open = False
                     
-                    for img in status_img:
+                    for img in status_imgs:
                         src = img.get_attribute("src") or ""
                         if "/img/sr/open.svg" in src:
                             is_open = True
@@ -112,9 +130,13 @@ class ArapahoeBasinScraper(BaseScraper):
                     if not any(l['liftName'] == lift_name for l in lifts):
                         lifts.append(lift_obj)
                         print(f"  ✓ Added lift: {lift_name} ({lift_type}) - Open: {is_open}")
+                    else:
+                        print(f"  ⚠️ Skipping duplicate: {lift_name}")
                 
                 except Exception as e:
                     print(f"  ⚠️ Error parsing lift element: {e}")
+                    import traceback
+                    traceback.print_exc()
                     continue
             
             print(f"Total lifts parsed: {len(lifts)}")

@@ -103,8 +103,31 @@ class CopperScraper(BaseScraper):
                             
                             # Get lift status (check for green checkmark)
                             status_cell = row.find_element(By.CLASS_NAME, "status")
-                            # Check if there's a green path (open) or red path (closed)
-                            is_open = len(status_cell.find_elements(By.XPATH, ".//path[@fill='#8BC53F']")) > 0
+                            
+                            # Check status using multiple methods for robustness
+                            is_open = False
+                            
+                            # Method 1: Check for green/red fill in path elements
+                            all_paths = status_cell.find_elements(By.TAG_NAME, "path")
+                            for path in all_paths:
+                                fill_attr = path.get_attribute("fill")
+                                if fill_attr:
+                                    if "#8BC53F" in fill_attr.upper():  # Green = Open
+                                        is_open = True
+                                        break
+                                    elif "#D0021B" in fill_attr.upper():  # Red = Closed
+                                        is_open = False
+                                        break
+                            
+                            # Method 2: Check for class indicators as backup
+                            if not is_open:
+                                try:
+                                    icon_div = status_cell.find_element(By.TAG_NAME, "div")
+                                    class_attr = icon_div.get_attribute("class")
+                                    if class_attr and "opening" in class_attr:
+                                        is_open = True
+                                except:
+                                    pass
                             
                             lift_obj = {
                                 "liftName": lift_name,
