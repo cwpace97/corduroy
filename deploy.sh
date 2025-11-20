@@ -31,7 +31,7 @@ print_usage() {
     echo "  build               Build the Docker images"
     echo "  start-grid          Start Selenium Grid (hub + chromium node)"
     echo "  stop-grid           Stop Selenium Grid"
-    echo "  run [SCRAPER]       Run a specific scraper (copper, loveland, winterpark, abasin, all)"
+    echo "  run [SCRAPER]       Run a specific scraper (copper, loveland, winterpark, abasin, keystone, breckenridge, vail, all)"
     echo "  clean               Stop and remove all containers"
     echo "  logs [SCRAPER]      Show logs for a specific scraper"
     echo "  shell               Open a shell in the scraper container"
@@ -44,6 +44,9 @@ print_usage() {
     echo "  $0 start-grid              # Start Selenium Grid"
     echo "  $0 run copper              # Run Copper Mountain scraper"
     echo "  $0 run abasin              # Run Arapahoe Basin scraper"
+    echo "  $0 run keystone            # Run Keystone scraper"
+    echo "  $0 run breckenridge        # Run Breckenridge scraper"
+    echo "  $0 run vail                # Run Vail scraper"
     echo "  $0 run all                 # Run all scrapers sequentially"
     echo "  $0 logs copper             # Show logs for Copper scraper"
     echo "  $0 clean                   # Clean up all containers"
@@ -122,7 +125,7 @@ run_scraper() {
     local scraper=$1
     
     if [ -z "$scraper" ]; then
-        echo -e "${RED}ERROR: Please specify a scraper: copper, loveland, winterpark, abasin, or all${NC}"
+        echo -e "${RED}ERROR: Please specify a scraper: copper, loveland, winterpark, abasin, keystone, breckenridge, vail, or all${NC}"
         return 1
     fi
     
@@ -157,17 +160,35 @@ run_scraper() {
             docker-compose --profile abasin up --build
             echo -e "${GREEN}Arapahoe Basin scraper completed${NC}"
             ;;
+        "keystone")
+            echo -e "${YELLOW}Running Keystone scraper...${NC}"
+            docker-compose --profile keystone up --build
+            echo -e "${GREEN}Keystone scraper completed${NC}"
+            ;;
+        "breckenridge")
+            echo -e "${YELLOW}Running Breckenridge scraper...${NC}"
+            docker-compose --profile breckenridge up --build
+            echo -e "${GREEN}Breckenridge scraper completed${NC}"
+            ;;
+        "vail")
+            echo -e "${YELLOW}Running Vail scraper...${NC}"
+            docker-compose --profile vail up --build
+            echo -e "${GREEN}Vail scraper completed${NC}"
+            ;;
         "all")
             echo -e "${YELLOW}Running all scrapers sequentially...${NC}"
             run_scraper "copper"
             run_scraper "loveland" 
             run_scraper "winterpark"
             run_scraper "abasin"
+            run_scraper "keystone"
+            run_scraper "breckenridge"
+            run_scraper "vail"
             echo -e "${GREEN}All scrapers completed successfully${NC}"
             ;;
         *)
             echo -e "${RED}ERROR: Unknown scraper: $scraper${NC}"
-            echo -e "${BLUE}Available scrapers: copper, loveland, winterpark, abasin, all${NC}"
+            echo -e "${BLUE}Available scrapers: copper, loveland, winterpark, abasin, keystone, breckenridge, vail, all${NC}"
             return 1
             ;;
     esac
@@ -177,7 +198,7 @@ show_logs() {
     local scraper=$1
     
     if [ -z "$scraper" ]; then
-        echo -e "${RED}ERROR: Please specify a scraper: copper, loveland, winterpark, abasin, selenium-hub, or chromium-node${NC}"
+        echo -e "${RED}ERROR: Please specify a scraper: copper, loveland, winterpark, abasin, keystone, breckenridge, vail, selenium-hub, or chromium-node${NC}"
         return 1
     fi
     
@@ -202,6 +223,9 @@ clean_containers() {
     docker-compose --profile loveland down --remove-orphans 2>/dev/null || true
     docker-compose --profile winterpark down --remove-orphans 2>/dev/null || true
     docker-compose --profile abasin down --remove-orphans 2>/dev/null || true
+    docker-compose --profile keystone down --remove-orphans 2>/dev/null || true
+    docker-compose --profile breckenridge down --remove-orphans 2>/dev/null || true
+    docker-compose --profile vail down --remove-orphans 2>/dev/null || true
     docker-compose --profile init down --remove-orphans 2>/dev/null || true
     echo -e "${GREEN}Cleanup completed successfully${NC}"
 }

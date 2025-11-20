@@ -79,6 +79,57 @@ services:
     profiles:
       - abasin
 
+  # Keystone Scraper using pre-built Seleniarm
+  keystone-scraper:
+    build: .
+    container_name: corduroy-keystone-scraper
+    environment:
+      - WEBSITE_URL=https://www.keystoneresort.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
+      - DB_PATH=/data/ski.db
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./ski.db:/data/ski.db
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_keystone.py"]
+    profiles:
+      - keystone
+
+  # Breckenridge Scraper using pre-built Seleniarm
+  breckenridge-scraper:
+    build: .
+    container_name: corduroy-breckenridge-scraper
+    environment:
+      - WEBSITE_URL=https://www.breckenridge.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
+      - DB_PATH=/data/ski.db
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./ski.db:/data/ski.db
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_breckenridge.py"]
+    profiles:
+      - breckenridge
+
+  # Vail Scraper using pre-built Seleniarm
+  vail-scraper:
+    build: .
+    container_name: corduroy-vail-scraper
+    environment:
+      - WEBSITE_URL=https://www.vail.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
+      - DB_PATH=/data/ski.db
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./ski.db:/data/ski.db
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_vail.py"]
+    profiles:
+      - vail
+
   # ARM64 Selenium Hub
   selenium-hub:
     image: seleniarm/hub:latest
@@ -104,7 +155,10 @@ services:
     shm_size: '2g'
 
 # Note: Usage with Selenium Hub approach:
-# ./deploy.sh run copper    # Runs copper scraper with Selenium Grid
-# ./deploy.sh run loveland  # Runs loveland scraper with Selenium Grid  
-# ./deploy.sh run winterpark # Runs winterpark scraper with Selenium Grid
-# ./deploy.sh run abasin    # Runs arapahoe basin scraper with Selenium Grid 
+# ./deploy.sh run copper       # Runs copper scraper with Selenium Grid
+# ./deploy.sh run loveland     # Runs loveland scraper with Selenium Grid  
+# ./deploy.sh run winterpark   # Runs winterpark scraper with Selenium Grid
+# ./deploy.sh run abasin       # Runs arapahoe basin scraper with Selenium Grid
+# ./deploy.sh run keystone     # Runs keystone scraper with Selenium Grid
+# ./deploy.sh run breckenridge # Runs breckenridge scraper with Selenium Grid
+# ./deploy.sh run vail         # Runs vail scraper with Selenium Grid 

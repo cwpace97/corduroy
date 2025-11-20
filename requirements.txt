@@ -22,3 +22,8 @@ packaging==24.2
 
 # Optional: For better error handling and logging
 typing_extensions==4.12.2
+
+# Backend API dependencies
+fastapi==0.115.5
+uvicorn==0.32.1
+strawberry-graphql[fastapi]
