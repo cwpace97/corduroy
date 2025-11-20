@@ -1,6 +1,6 @@
 # Corduroy
 
-A full-stack web application that scrapes and displays real-time ski resort data for Colorado mountains. View live lift and run status, difficulty levels, and grooming information through a modern React dashboard powered by a GraphQL API.
+A full-stack web application that scrapes and displays real-time ski resort data for Colorado mountains. View live lift and run status, difficulty levels, and grooming information through a modern React dashboard powered by a GraphQL API. For personal use. 
 
 ## What It Does
 
@@ -8,8 +8,6 @@ A full-stack web application that scrapes and displays real-time ski resort data
 - **Stores** historical data in a SQLite database
 - **Serves** data via a GraphQL API (FastAPI + Strawberry)
 - **Displays** interactive resort cards with expandable details
-
-**Supported Resorts:** Arapahoe Basin, Copper Mountain, Loveland, Winter Park
 
 ## File Structure
 
