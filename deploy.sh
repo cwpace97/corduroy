@@ -31,7 +31,7 @@ print_usage() {
     echo "  build               Build the Docker images"
     echo "  start-grid          Start Selenium Grid (hub + chromium node)"
     echo "  stop-grid           Stop Selenium Grid"
-    echo "  run [SCRAPER]       Run a specific scraper (copper, loveland, winterpark, abasin, keystone, breckenridge, vail, all)"
+    echo "  run [SCRAPER]       Run a specific scraper (copper, loveland, winterpark, abasin, keystone, breckenridge, vail, steamboat, all)"
     echo "  clean               Stop and remove all containers"
     echo "  logs [SCRAPER]      Show logs for a specific scraper"
     echo "  shell               Open a shell in the scraper container"
@@ -47,6 +47,7 @@ print_usage() {
     echo "  $0 run keystone            # Run Keystone scraper"
     echo "  $0 run breckenridge        # Run Breckenridge scraper"
     echo "  $0 run vail                # Run Vail scraper"
+    echo "  $0 run steamboat           # Run Steamboat scraper"
     echo "  $0 run all                 # Run all scrapers sequentially"
     echo "  $0 logs copper             # Show logs for Copper scraper"
     echo "  $0 clean                   # Clean up all containers"
@@ -125,7 +126,7 @@ run_scraper() {
     local scraper=$1
     
     if [ -z "$scraper" ]; then
-        echo -e "${RED}ERROR: Please specify a scraper: copper, loveland, winterpark, abasin, keystone, breckenridge, vail, or all${NC}"
+        echo -e "${RED}ERROR: Please specify a scraper: copper, loveland, winterpark, abasin, keystone, breckenridge, vail, steamboat, or all${NC}"
         return 1
     fi
     
@@ -175,6 +176,11 @@ run_scraper() {
             docker-compose --profile vail up --build
             echo -e "${GREEN}Vail scraper completed${NC}"
             ;;
+        "steamboat")
+            echo -e "${YELLOW}Running Steamboat scraper...${NC}"
+            docker-compose --profile steamboat up --build
+            echo -e "${GREEN}Steamboat scraper completed${NC}"
+            ;;
         "all")
             echo -e "${YELLOW}Running all scrapers sequentially...${NC}"
             run_scraper "copper"
@@ -184,11 +190,12 @@ run_scraper() {
             run_scraper "keystone"
             run_scraper "breckenridge"
             run_scraper "vail"
+            run_scraper "steamboat"
             echo -e "${GREEN}All scrapers completed successfully${NC}"
             ;;
         *)
             echo -e "${RED}ERROR: Unknown scraper: $scraper${NC}"
-            echo -e "${BLUE}Available scrapers: copper, loveland, winterpark, abasin, keystone, breckenridge, vail, all${NC}"
+            echo -e "${BLUE}Available scrapers: copper, loveland, winterpark, abasin, keystone, breckenridge, vail, steamboat, all${NC}"
             return 1
             ;;
     esac
@@ -198,7 +205,7 @@ show_logs() {
     local scraper=$1
     
     if [ -z "$scraper" ]; then
-        echo -e "${RED}ERROR: Please specify a scraper: copper, loveland, winterpark, abasin, keystone, breckenridge, vail, selenium-hub, or chromium-node${NC}"
+        echo -e "${RED}ERROR: Please specify a scraper: copper, loveland, winterpark, abasin, keystone, breckenridge, vail, steamboat, selenium-hub, or chromium-node${NC}"
         return 1
     fi
     
@@ -226,6 +233,7 @@ clean_containers() {
     docker-compose --profile keystone down --remove-orphans 2>/dev/null || true
     docker-compose --profile breckenridge down --remove-orphans 2>/dev/null || true
     docker-compose --profile vail down --remove-orphans 2>/dev/null || true
+    docker-compose --profile steamboat down --remove-orphans 2>/dev/null || true
     docker-compose --profile init down --remove-orphans 2>/dev/null || true
     echo -e "${GREEN}Cleanup completed successfully${NC}"
 }

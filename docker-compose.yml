@@ -130,6 +130,23 @@ services:
     profiles:
       - vail
 
+  # Steamboat Scraper using pre-built Seleniarm
+  steamboat-scraper:
+    build: .
+    container_name: corduroy-steamboat-scraper
+    environment:
+      - WEBSITE_URL=https://www.steamboat.com/the-mountain/mountain-report
+      - DB_PATH=/data/ski.db
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ./ski.db:/data/ski.db
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_steamboat.py"]
+    profiles:
+      - steamboat
+
   # ARM64 Selenium Hub
   selenium-hub:
     image: seleniarm/hub:latest
@@ -161,4 +178,5 @@ services:
 # ./deploy.sh run abasin       # Runs arapahoe basin scraper with Selenium Grid
 # ./deploy.sh run keystone     # Runs keystone scraper with Selenium Grid
 # ./deploy.sh run breckenridge # Runs breckenridge scraper with Selenium Grid
-# ./deploy.sh run vail         # Runs vail scraper with Selenium Grid 
+# ./deploy.sh run vail         # Runs vail scraper with Selenium Grid
+# ./deploy.sh run steamboat    # Runs steamboat scraper with Selenium Grid 

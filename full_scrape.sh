@@ -21,8 +21,8 @@ echo "Step 2: Running all scrapers..."
 echo "----------------------------------------"
 
 # Array of scraper profiles
-scrapers=("abasin" "copper" "loveland" "winterpark" "keystone" "breckenridge" "vail")
-scraper_names=("Arapahoe Basin" "Copper Mountain" "Loveland" "Winter Park" "Keystone" "Breckenridge" "Vail")
+scrapers=("abasin" "copper" "loveland" "winterpark" "keystone" "breckenridge" "vail" "steamboat")
+scraper_names=("Arapahoe Basin" "Copper Mountain" "Loveland" "Winter Park" "Keystone" "Breckenridge" "Vail" "Steamboat")
 
 # Run each scraper sequentially
 for i in "${!scrapers[@]}"; do
