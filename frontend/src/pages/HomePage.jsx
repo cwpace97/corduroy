@@ -2,6 +2,7 @@ import { useQuery, gql } from '@apollo/client'
 import { Link } from 'react-router-dom'
 import ResortCard from '../components/ResortCard'
 import LoadingSpinner from '../components/LoadingSpinner'
+import RecentlyOpened from '../components/RecentlyOpened'
 
 const GET_RESORTS = gql`
   query GetResorts {
@@ -40,6 +41,18 @@ const GET_RESORTS = gql`
       }
       recentlyOpenedRuns {
         name
+        dateOpened
+      }
+    }
+    globalRecentlyOpened {
+      lifts {
+        name
+        location
+        dateOpened
+      }
+      runs {
+        name
+        location
         dateOpened
       }
     }
@@ -98,6 +111,9 @@ const HomePage = () => {
             View Details Table
           </Link>
         </header>
+
+        {/* Recently Opened Section */}
+        <RecentlyOpened data={data?.globalRecentlyOpened} />
 
         <div className="space-y-6">
           {data?.resorts?.map((resort) => (

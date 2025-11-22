@@ -51,6 +51,14 @@ class RecentlyOpened:
 
 
 @strawberry.type
+class RecentlyOpenedWithLocation:
+    """Recently opened lift or run with location information"""
+    name: str
+    location: str
+    date_opened: str
+
+
+@strawberry.type
 class ResortSummary:
     """Summary information for a ski resort"""
     location: str
@@ -71,6 +79,13 @@ class ResortSummary:
 
 
 @strawberry.type
+class GlobalRecentlyOpened:
+    """Global recently opened lifts and runs across all resorts"""
+    lifts: List[RecentlyOpenedWithLocation]
+    runs: List[RecentlyOpenedWithLocation]
+
+
+@strawberry.type
 class Query:
     """GraphQL query root"""
     
@@ -85,4 +100,10 @@ class Query:
         """Get detailed data for a specific resort"""
         from .resolvers import get_resort_by_location
         return get_resort_by_location(location)
+    
+    @strawberry.field
+    def global_recently_opened(self) -> GlobalRecentlyOpened:
+        """Get recently opened lifts and runs across all resorts"""
+        from .resolvers import get_global_recently_opened
+        return get_global_recently_opened()
 

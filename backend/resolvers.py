@@ -4,7 +4,7 @@
 import sqlite3
 from typing import List, Optional
 from pathlib import Path
-from .schema import ResortSummary, Lift, Run, RunsByDifficulty, HistoryDataPoint, RecentlyOpened
+from .schema import ResortSummary, Lift, Run, RunsByDifficulty, HistoryDataPoint, RecentlyOpened, GlobalRecentlyOpened, RecentlyOpenedWithLocation
 
 
 # Database path
@@ -242,4 +242,54 @@ def get_resort_by_location(location: str) -> Optional[ResortSummary]:
         recently_opened_lifts=recently_opened_lifts,
         recently_opened_runs=recently_opened_runs
     )
+
+
+def get_global_recently_opened() -> GlobalRecentlyOpened:
+    """Get recently opened lifts and runs across all resorts"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Get top 10 recently opened lifts across all locations
+    cursor.execute("""
+        SELECT lift_name, location, MIN(updated_date) as date_opened
+        FROM lifts
+        WHERE lift_status = 'true'
+        GROUP BY location, lift_name
+        ORDER BY date_opened DESC
+        LIMIT 10
+    """)
+    
+    lifts_data = cursor.fetchall()
+    lifts = [
+        RecentlyOpenedWithLocation(
+            name=row['lift_name'],
+            location=row['location'],
+            date_opened=row['date_opened']
+        )
+        for row in lifts_data
+    ]
+    
+    # Get top 10 recently opened runs across all locations
+    cursor.execute("""
+        SELECT run_name, location, MIN(updated_date) as date_opened
+        FROM runs
+        WHERE run_status = 'true'
+        GROUP BY location, run_name
+        ORDER BY date_opened DESC
+        LIMIT 10
+    """)
+    
+    runs_data = cursor.fetchall()
+    runs = [
+        RecentlyOpenedWithLocation(
+            name=row['run_name'],
+            location=row['location'],
+            date_opened=row['date_opened']
+        )
+        for row in runs_data
+    ]
+    
+    conn.close()
+    
+    return GlobalRecentlyOpened(lifts=lifts, runs=runs)
 
