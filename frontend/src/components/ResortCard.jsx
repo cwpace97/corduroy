@@ -92,10 +92,10 @@ const ResortCard = ({ resort }) => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left side - Lifts and Runs Status with History */}
-          <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Lifts Combined */}
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+          {/* Lifts Column - Status, History, Recently Opened */}
+          <div className="bg-white/5 rounded-lg p-4 border border-white/10 space-y-4">
+            {/* Lifts Open */}
+            <div>
               <div className="text-slate-400 text-sm mb-3 font-semibold">Lifts Open</div>
               <div className="flex items-end justify-between mb-3">
                 <div className="text-4xl font-bold text-white">
@@ -103,27 +103,63 @@ const ResortCard = ({ resort }) => {
                 </div>
                 <div className="text-lg text-slate-300">{liftOpenPercentage}%</div>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
+              <div className="w-full bg-gray-700 rounded-full h-2">
                 <div 
                   className="bg-green-500 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${liftOpenPercentage}%` }}
                 />
               </div>
-              
-              {/* 7 Day History */}
-              <div className="border-t border-white/10 pt-3 mt-3">
-                <div className="text-slate-400 text-xs mb-2">7 Day History</div>
-                <MiniLineChart 
-                  data={resort.liftsHistory} 
-                  color="#10b981"
-                  maxValue={resort.totalLifts}
-                  totalCount={resort.totalLifts}
-                />
-              </div>
             </div>
 
-            {/* Runs Combined */}
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
+            {/* 7 Day History */}
+            <div className="border-t border-white/10 pt-4">
+              <div className="text-slate-400 text-xs mb-2">7 Day History</div>
+              <MiniLineChart 
+                data={resort.liftsHistory} 
+                color="#10b981"
+                maxValue={resort.totalLifts}
+                totalCount={resort.totalLifts}
+              />
+            </div>
+
+            {/* Recently Opened Lifts */}
+            <div className="border-t border-white/10 pt-4">
+              <div className="text-slate-400 text-xs mb-3 font-semibold">Recently Opened</div>
+              <div className="space-y-2">
+                {resort.recentlyOpenedLifts && resort.recentlyOpenedLifts.length > 0 ? (
+                  resort.recentlyOpenedLifts.map((lift, index) => {
+                    // Find the full lift data to get type
+                    const fullLift = resort.lifts.find(l => l.liftName === lift.name)
+                    return (
+                      <div 
+                        key={index}
+                        className="bg-white/5 rounded p-2 border border-white/10"
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <div className="text-white text-sm font-medium">{lift.name}</div>
+                          {fullLift && fullLift.liftType && (
+                            <div className="inline-block bg-slate-600 border border-slate-500 rounded px-2 py-0.5">
+                              <span className="text-slate-300 text-xs">{fullLift.liftType}</span>
+                            </div>
+                          )}
+                          <div className="inline-block bg-slate-700 border border-slate-600 rounded px-2 py-0.5">
+                            <span className="text-slate-300 text-xs">Opened: {lift.dateOpened}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="text-slate-500 text-xs">No recent data</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Runs Column - Status, History, Recently Opened */}
+          <div className="bg-white/5 rounded-lg p-4 border border-white/10 space-y-4">
+            {/* Runs Open */}
+            <div>
               <div className="text-slate-400 text-sm mb-3 font-semibold">Runs Open</div>
               <div className="flex items-end justify-between mb-3">
                 <div className="text-4xl font-bold text-white">
@@ -131,77 +167,86 @@ const ResortCard = ({ resort }) => {
                 </div>
                 <div className="text-lg text-slate-300">{runOpenPercentage}%</div>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-2 mb-4">
+              <div className="w-full bg-gray-700 rounded-full h-2">
                 <div 
                   className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${runOpenPercentage}%` }}
                 />
               </div>
-              
-              {/* 7 Day History */}
-              <div className="border-t border-white/10 pt-3 mt-3">
-                <div className="text-slate-400 text-xs mb-2">7 Day History</div>
-                <MiniLineChart 
-                  data={resort.runsHistory} 
-                  color="#3b82f6"
-                  maxValue={resort.totalRuns}
-                  totalCount={resort.totalRuns}
-                />
+            </div>
+
+            {/* 7 Day History */}
+            <div className="border-t border-white/10 pt-4">
+              <div className="text-slate-400 text-xs mb-2">7 Day History</div>
+              <MiniLineChart 
+                data={resort.runsHistory} 
+                color="#3b82f6"
+                maxValue={resort.totalRuns}
+                totalCount={resort.totalRuns}
+              />
+            </div>
+
+            {/* Recently Opened Runs */}
+            <div className="border-t border-white/10 pt-4">
+              <div className="text-slate-400 text-xs mb-3 font-semibold">Recently Opened</div>
+              <div className="space-y-2">
+                {resort.recentlyOpenedRuns && resort.recentlyOpenedRuns.length > 0 ? (
+                  resort.recentlyOpenedRuns.map((run, index) => {
+                    // Find the full run data to get difficulty
+                    const fullRun = resort.runs.find(r => r.runName === run.name)
+                    return (
+                      <div 
+                        key={index}
+                        className="bg-white/5 rounded p-2 border border-white/10"
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {fullRun && (
+                            <DifficultyBadge difficulty={fullRun.runDifficulty} />
+                          )}
+                          <div className="text-white text-sm font-medium">{run.name}</div>
+                          <div className="inline-block bg-slate-700 border border-slate-600 rounded px-2 py-0.5">
+                            <span className="text-slate-300 text-xs">Opened: {run.dateOpened}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="text-slate-500 text-xs">No recent data</div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right side - Recently Opened */}
-          <div className="space-y-4">
-            {/* Recently Opened Lifts */}
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="text-slate-400 text-sm mb-3 font-semibold">Recently Opened Lifts</div>
-              <div className="space-y-2">
-                {resort.recentlyOpenedLifts && resort.recentlyOpenedLifts.length > 0 ? (
-                  resort.recentlyOpenedLifts.map((lift, index) => (
-                    <div 
-                      key={index}
-                      className="bg-white/5 rounded p-2 border border-white/10"
-                    >
-                      <div className="text-white text-sm font-medium">{lift.name}</div>
-                      <div className="text-slate-400 text-xs mt-1">{lift.dateOpened}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-slate-500 text-xs">No recent data</div>
-                )}
-              </div>
-            </div>
-
-            {/* Recently Opened Runs */}
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-              <div className="text-slate-400 text-sm mb-3 font-semibold">Recently Opened Runs</div>
-              <div className="space-y-2">
-                {resort.recentlyOpenedRuns && resort.recentlyOpenedRuns.length > 0 ? (
-                  resort.recentlyOpenedRuns.map((run, index) => (
-                    <div 
-                      key={index}
-                      className="bg-white/5 rounded p-2 border border-white/10"
-                    >
-                      <div className="text-white text-sm font-medium">{run.name}</div>
-                      <div className="text-slate-400 text-xs mt-1">{run.dateOpened}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-slate-500 text-xs">No recent data</div>
-                )}
-              </div>
-            </div>
-
-            {/* View Details Button */}
-            <div className="bg-white/5 rounded-lg p-4 border border-white/10 flex items-center justify-center">
-              <button 
-                className="text-sky-400 hover:text-sky-300 font-semibold text-lg transition-colors"
-                aria-label={showDetails ? 'Hide details' : 'Show details'}
+          {/* Weather Placeholder Column */}
+          <div className="bg-white/5 rounded-lg p-4 border border-white/10 flex items-center justify-center">
+            <div className="text-center">
+              <svg 
+                className="w-16 h-16 mx-auto mb-4 text-slate-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                {showDetails ? '▲ Hide Details' : '▼ View Details'}
-              </button>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
+                />
+              </svg>
+              <div className="text-slate-500 text-lg font-semibold mb-2">Weather Data</div>
+              <div className="text-slate-600 text-sm">Coming Soon</div>
             </div>
+          </div>
+
+          {/* View Details Button */}
+          <div className="lg:col-span-3 bg-white/5 rounded-lg p-4 border border-white/10 flex items-center justify-center">
+            <button 
+              className="text-sky-400 hover:text-sky-300 font-semibold text-lg transition-colors"
+              aria-label={showDetails ? 'Hide details' : 'Show details'}
+            >
+              {showDetails ? '▲ Hide Details' : '▼ View Details'}
+            </button>
           </div>
         </div>
       </div>

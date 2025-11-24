@@ -11,13 +11,13 @@ const RecentlyOpened = ({ data }) => {
 
   return (
     <div className="bg-white/10 backdrop-blur-sm rounded-lg shadow-xl overflow-hidden border border-white/20 p-6 mb-8">
-      <h2 className="text-2xl font-bold text-white mb-6">🎉 Recently Opened</h2>
+      <h2 className="text-2xl font-bold text-white mb-6">Recently Opened</h2>
       
       {/* Recently Opened Lifts */}
       {data.lifts && data.lifts.length > 0 && (
         <div className="mb-6">
           <h3 className="text-lg font-semibold text-slate-300 mb-4 flex items-center gap-2">
-            🚡 Lifts
+            Lifts
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {data.lifts.map((lift, index) => {
@@ -47,7 +47,7 @@ const RecentlyOpened = ({ data }) => {
       {data.runs && data.runs.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-slate-300 mb-4 flex items-center gap-2">
-            ⛷️ Runs
+            Runs
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {data.runs.map((run, index) => {

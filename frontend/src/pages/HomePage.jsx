@@ -86,7 +86,7 @@ const HomePage = () => {
       <div className="max-w-7xl mx-auto">
         <header className="mb-12 text-center">
           <h1 className="text-5xl font-bold text-white mb-3">
-            ⛷️ Ski Resort Dashboard
+            Ski Resort Dashboard
           </h1>
           <p className="text-slate-300 text-lg mb-4">
             Real-time lift and trail status for Colorado ski resorts

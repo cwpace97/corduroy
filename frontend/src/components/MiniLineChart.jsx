@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
 const MiniLineChart = ({ data, color = '#10b981', maxValue = null, totalCount = null }) => {
   const [hoveredPoint, setHoveredPoint] = useState(null)
@@ -11,16 +11,21 @@ const MiniLineChart = ({ data, color = '#10b981', maxValue = null, totalCount = 
     )
   }
 
-  // Find min and max for scaling
+  // Find min and max for scaling (relative to data range)
   const values = data.map(d => d.openCount || 0)
-  const chartMaxValue = maxValue !== null ? maxValue : Math.max(...values, 1)
-  const minValue = 0 // Always start from 0
+  const dataMax = Math.max(...values, 1)
+  const dataMin = Math.min(...values, 0)
+  
+  // Add some padding to the range for better visualization
+  const rangePadding = Math.max((dataMax - dataMin) * 0.1, 1)
+  const chartMaxValue = dataMax + rangePadding
+  const minValue = Math.max(0, dataMin - rangePadding)
   const range = chartMaxValue - minValue || 1
 
   // SVG dimensions
-  const width = 100
+  const width = 300
   const height = 50
-  const padding = 5
+  const padding = 10
 
   // Calculate points for the line
   const points = data.map((point, index) => {
@@ -41,24 +46,25 @@ const MiniLineChart = ({ data, color = '#10b981', maxValue = null, totalCount = 
   // Create the area path (filled under the line)
   const areaPath = `${linePath} L ${width - padding} ${height - padding} L ${padding} ${height - padding} Z`
 
-  const handleMouseEnter = (point) => {
-    setHoveredPoint(point)
-  }
+  const handleMouseEnter = useCallback((point, index) => {
+    setHoveredPoint({ ...point, index })
+  }, [])
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     setHoveredPoint(null)
-  }
+  }, [])
 
   return (
     <div className="relative flex flex-col items-center w-full">
       <svg width="100%" height={height} className="overflow-visible" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid meet">
-        {/* Tooltip */}
+        {/* Tooltip positioned inside SVG using foreignObject */}
         {hoveredPoint && (
           <foreignObject
             x={hoveredPoint.x - 40}
-            y={hoveredPoint.y - 50}
+            y={hoveredPoint.y - 70}
             width="80"
-            height="45"
+            height="50"
+            className="overflow-visible pointer-events-none"
           >
             <div className="bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs shadow-lg whitespace-nowrap">
               <div className="text-white font-semibold text-center">{hoveredPoint.date}</div>
@@ -101,24 +107,24 @@ const MiniLineChart = ({ data, color = '#10b981', maxValue = null, totalCount = 
         {/* Points */}
         {points.map((point, index) => (
           <g key={index}>
+            {/* Larger invisible hit area for better interaction */}
             <circle
               cx={point.x}
               cy={point.y}
-              r="3"
-              fill={color}
-              className="transition-all cursor-pointer"
-              onMouseEnter={() => handleMouseEnter(point)}
+              r="8"
+              fill="transparent"
+              className="cursor-pointer"
+              onMouseEnter={() => handleMouseEnter(point, index)}
               onMouseLeave={handleMouseLeave}
             />
-            {hoveredPoint === point && (
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r="5"
-                fill={color}
-                className="animate-pulse"
-              />
-            )}
+            {/* Visible circle */}
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={hoveredPoint && hoveredPoint.index === index ? "5" : "3"}
+              fill={color}
+              className="pointer-events-none transition-all"
+            />
           </g>
         ))}
       </svg>
