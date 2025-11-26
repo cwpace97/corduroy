@@ -1,19 +1,33 @@
 services:
   # Database initialization service
   # Note: DATABASE_URL should point to your PostgreSQL instance
-  # For local Docker: postgresql://ski_admin:password@postgres:5432/app (requires postgres service)
-  # For EC2 direct (with SSL): postgresql://ski_admin:password@your-ec2-ip:5432/app?sslmode=require
-  # For EC2 via SSH tunnel: postgresql://ski_admin:password@localhost:5432/app
+  # For local Docker: postgresql://user:password@postgres:5432/app (requires postgres service)
+  # For EC2 direct (with SSL): postgresql://user:password@your-ec2-ip:5432/app?sslmode=require
+  # For EC2 via SSH tunnel: postgresql://user:password@host.docker.internal:5432/app
+  # Note: On macOS Docker Desktop, use host.docker.internal to access host's localhost (SSH tunnel)
   db-init:
     build:
       context: ..
       dockerfile: scrapers/Dockerfile
     container_name: corduroy-db-init
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@your-ec2-ip:5432/app?sslmode=require}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
     command: ["python3", "init_db.py"]
     profiles:
       - init
+
+  # Database connection test service
+  # Tests database connection from Docker container (uses same setup as scrapers)
+  db-test:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-db-test
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
+    command: ["python3", "scrapers/test_db_connection.py"]
+    profiles:
+      - test
 
   # Copper Mountain Scraper using pre-built Seleniarm
   copper-scraper:
@@ -23,15 +37,9 @@ services:
     container_name: corduroy-copper-scraper
     environment:
       - WEBSITE_URL=https://www.coppercolorado.com/the-mountain/trail-lift-info/winter-trail-report
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
-      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
-      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
-      - SSH_KEY_PATH=/root/.ssh/id_rsa
-      - SSH_PORT=${SSH_PORT:-22}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
       - SELENIUM_HOST=selenium-hub
       - SELENIUM_PORT=4444
-    volumes:
-      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
     depends_on:
       - selenium-hub
     command: ["python3", "scrapers/scraper_copper.py"]
@@ -46,15 +54,9 @@ services:
     container_name: corduroy-loveland-scraper
     environment:
       - WEBSITE_URL=https://skiloveland.com/trail-lift-report/
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
-      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
-      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
-      - SSH_KEY_PATH=/root/.ssh/id_rsa
-      - SSH_PORT=${SSH_PORT:-22}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
       - SELENIUM_HOST=selenium-hub
       - SELENIUM_PORT=4444
-    volumes:
-      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
     depends_on:
       - selenium-hub
     command: ["python3", "scrapers/scraper_loveland.py"]
@@ -69,15 +71,9 @@ services:
     container_name: corduroy-winterpark-scraper
     environment:
       - WEBSITE_URL=https://www.winterparkresort.com/the-mountain/mountain-report#lift-and-trail-status
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
-      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
-      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
-      - SSH_KEY_PATH=/root/.ssh/id_rsa
-      - SSH_PORT=${SSH_PORT:-22}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
       - SELENIUM_HOST=selenium-hub
       - SELENIUM_PORT=4444
-    volumes:
-      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
     depends_on:
       - selenium-hub
     command: ["python3", "scrapers/scraper_winterpark.py"]
@@ -92,15 +88,9 @@ services:
     container_name: corduroy-abasin-scraper
     environment:
       - WEBSITE_URL=https://www.arapahoebasin.com/snow-report/
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
-      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
-      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
-      - SSH_KEY_PATH=/root/.ssh/id_rsa
-      - SSH_PORT=${SSH_PORT:-22}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
       - SELENIUM_HOST=selenium-hub
       - SELENIUM_PORT=4444
-    volumes:
-      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
     depends_on:
       - selenium-hub
     command: ["python3", "scrapers/scraper_abasin.py"]
@@ -115,15 +105,9 @@ services:
     container_name: corduroy-keystone-scraper
     environment:
       - WEBSITE_URL=https://www.keystoneresort.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
-      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
-      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
-      - SSH_KEY_PATH=/root/.ssh/id_rsa
-      - SSH_PORT=${SSH_PORT:-22}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
       - SELENIUM_HOST=selenium-hub
       - SELENIUM_PORT=4444
-    volumes:
-      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
     depends_on:
       - selenium-hub
     command: ["python3", "scrapers/scraper_keystone.py"]
@@ -138,15 +122,9 @@ services:
     container_name: corduroy-breckenridge-scraper
     environment:
       - WEBSITE_URL=https://www.breckenridge.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
-      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
-      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
-      - SSH_KEY_PATH=/root/.ssh/id_rsa
-      - SSH_PORT=${SSH_PORT:-22}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
       - SELENIUM_HOST=selenium-hub
       - SELENIUM_PORT=4444
-    volumes:
-      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
     depends_on:
       - selenium-hub
     command: ["python3", "scrapers/scraper_breckenridge.py"]
@@ -161,15 +139,9 @@ services:
     container_name: corduroy-vail-scraper
     environment:
       - WEBSITE_URL=https://www.vail.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
-      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
-      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
-      - SSH_KEY_PATH=/root/.ssh/id_rsa
-      - SSH_PORT=${SSH_PORT:-22}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
       - SELENIUM_HOST=selenium-hub
       - SELENIUM_PORT=4444
-    volumes:
-      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
     depends_on:
       - selenium-hub
     command: ["python3", "scrapers/scraper_vail.py"]
@@ -184,15 +156,9 @@ services:
     container_name: corduroy-steamboat-scraper
     environment:
       - WEBSITE_URL=https://www.steamboat.com/the-mountain/mountain-report
-      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
-      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
-      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
-      - SSH_KEY_PATH=/root/.ssh/id_rsa
-      - SSH_PORT=${SSH_PORT:-22}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
       - SELENIUM_HOST=selenium-hub
       - SELENIUM_PORT=4444
-    volumes:
-      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
     depends_on:
       - selenium-hub
     command: ["python3", "scrapers/scraper_steamboat.py"]
@@ -203,6 +169,7 @@ services:
   selenium-hub:
     image: seleniarm/hub:latest
     container_name: selenium-hub
+    shm_size: 2gb
     ports:
       - "4444:4444"
     environment:

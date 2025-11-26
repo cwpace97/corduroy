@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile.backend
     container_name: corduroy-backend
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:${POSTGRES_USER}}:${POSTGRES_PASSWORD:${POSTGRES_PASSWORD}}@postgres:5432/${POSTGRES_DB:${POSTGRES_DB}}
+      - DATABASE_URL={$DATABASE_URL}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
     depends_on:
       postgres:
