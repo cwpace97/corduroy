@@ -1,0 +1,35 @@
+[Unit]
+Description=Corduroy Frontend (Next.js)
+After=network.target corduroy-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/corduroy/frontend
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+Environment=NEXT_PUBLIC_GRAPHQL_URL=http://localhost:8000/graphql
+EnvironmentFile=-/home/ubuntu/corduroy/.env
+
+# Start the Next.js standalone server (uses output: 'standalone' from next.config.ts)
+ExecStart=/usr/bin/node /home/ubuntu/corduroy/frontend/.next/standalone/server.js
+
+# Restart policy
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=corduroy-frontend
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+

@@ -10,9 +10,6 @@ pytz==2024.2
 psycopg2-binary==2.9.9
 psycopg
 
-# SSH Tunnel for database connections
-sshtunnel
-
 # Environment variable management
 python-dotenv
 

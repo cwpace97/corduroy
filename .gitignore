@@ -1,4 +1,7 @@
 .env
+.env.production
+.env.local
+.ec2-deploy.conf
 
 # Logs
 logs
@@ -28,4 +31,3 @@ backend/__pycache__/*
 .cursorrules
 
 /ref
-
