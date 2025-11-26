@@ -6,8 +6,15 @@ requests==2.32.3
 python-dateutil==2.9.0.post0
 pytz==2024.2
 
-# Database (SQLite is built into Python, but including related packages)
-# No additional SQLite dependencies needed as it's built into Python
+# Database
+psycopg2-binary==2.9.9
+psycopg
+
+# SSH Tunnel for database connections
+sshtunnel
+
+# Environment variable management
+python-dotenv
 
 # Development and debugging
 colorama==0.4.6
@@ -27,3 +34,7 @@ typing_extensions==4.12.2
 fastapi==0.115.5
 uvicorn==0.32.1
 strawberry-graphql[fastapi]
+
+# For notebook running
+ipykernel
+folium

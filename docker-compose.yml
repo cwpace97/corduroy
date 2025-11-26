@@ -1,182 +1,81 @@
 services:
-  # Database initialization service
-  db-init:
-    build: .
-    container_name: corduroy-db-init
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    container_name: corduroy-postgres
     environment:
-      - DB_PATH=/data/ski.db
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
-      - ./ski.db:/data/ski.db
-    command: ["python3", "init_db.py"]
-    profiles:
-      - init
-
-  # Copper Mountain Scraper using pre-built Seleniarm
-  copper-scraper:
-    build: .
-    container_name: corduroy-copper-scraper
-    environment:
-      - WEBSITE_URL=https://www.coppercolorado.com/the-mountain/trail-lift-info/winter-trail-report
-      - DB_PATH=/data/ski.db
-      - SELENIUM_HOST=selenium-hub
-      - SELENIUM_PORT=4444
-    volumes:
-      - ./ski.db:/data/ski.db
-    depends_on:
-      - selenium-hub
-    command: ["python3", "scrapers/scraper_copper.py"]
-    profiles:
-      - copper
-
-  # Loveland Scraper using pre-built Seleniarm
-  loveland-scraper:
-    build: .
-    container_name: corduroy-loveland-scraper
-    environment:
-      - WEBSITE_URL=https://skiloveland.com/trail-lift-report/
-      - DB_PATH=/data/ski.db
-      - SELENIUM_HOST=selenium-hub
-      - SELENIUM_PORT=4444
-    volumes:
-      - ./ski.db:/data/ski.db
-    depends_on:
-      - selenium-hub
-    command: ["python3", "scrapers/scraper_loveland.py"]
-    profiles:
-      - loveland
-
-  # Winter Park Scraper using pre-built Seleniarm
-  winterpark-scraper:
-    build: .
-    container_name: corduroy-winterpark-scraper
-    environment:
-      - WEBSITE_URL=https://www.winterparkresort.com/the-mountain/mountain-report#lift-and-trail-status
-      - DB_PATH=/data/ski.db
-      - SELENIUM_HOST=selenium-hub
-      - SELENIUM_PORT=4444
-    volumes:
-      - ./ski.db:/data/ski.db
-    depends_on:
-      - selenium-hub
-    command: ["python3", "scrapers/scraper_winterpark.py"]
-    profiles:
-      - winterpark
-
-  # Arapahoe Basin Scraper using pre-built Seleniarm
-  abasin-scraper:
-    build: .
-    container_name: corduroy-abasin-scraper
-    environment:
-      - WEBSITE_URL=https://www.arapahoebasin.com/snow-report/
-      - DB_PATH=/data/ski.db
-      - SELENIUM_HOST=selenium-hub
-      - SELENIUM_PORT=4444
-    volumes:
-      - ./ski.db:/data/ski.db
-    depends_on:
-      - selenium-hub
-    command: ["python3", "scrapers/scraper_abasin.py"]
-    profiles:
-      - abasin
-
-  # Keystone Scraper using pre-built Seleniarm
-  keystone-scraper:
-    build: .
-    container_name: corduroy-keystone-scraper
-    environment:
-      - WEBSITE_URL=https://www.keystoneresort.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
-      - DB_PATH=/data/ski.db
-      - SELENIUM_HOST=selenium-hub
-      - SELENIUM_PORT=4444
-    volumes:
-      - ./ski.db:/data/ski.db
-    depends_on:
-      - selenium-hub
-    command: ["python3", "scrapers/scraper_keystone.py"]
-    profiles:
-      - keystone
-
-  # Breckenridge Scraper using pre-built Seleniarm
-  breckenridge-scraper:
-    build: .
-    container_name: corduroy-breckenridge-scraper
-    environment:
-      - WEBSITE_URL=https://www.breckenridge.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
-      - DB_PATH=/data/ski.db
-      - SELENIUM_HOST=selenium-hub
-      - SELENIUM_PORT=4444
-    volumes:
-      - ./ski.db:/data/ski.db
-    depends_on:
-      - selenium-hub
-    command: ["python3", "scrapers/scraper_breckenridge.py"]
-    profiles:
-      - breckenridge
-
-  # Vail Scraper using pre-built Seleniarm
-  vail-scraper:
-    build: .
-    container_name: corduroy-vail-scraper
-    environment:
-      - WEBSITE_URL=https://www.vail.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
-      - DB_PATH=/data/ski.db
-      - SELENIUM_HOST=selenium-hub
-      - SELENIUM_PORT=4444
-    volumes:
-      - ./ski.db:/data/ski.db
-    depends_on:
-      - selenium-hub
-    command: ["python3", "scrapers/scraper_vail.py"]
-    profiles:
-      - vail
-
-  # Steamboat Scraper using pre-built Seleniarm
-  steamboat-scraper:
-    build: .
-    container_name: corduroy-steamboat-scraper
-    environment:
-      - WEBSITE_URL=https://www.steamboat.com/the-mountain/mountain-report
-      - DB_PATH=/data/ski.db
-      - SELENIUM_HOST=selenium-hub
-      - SELENIUM_PORT=4444
-    volumes:
-      - ./ski.db:/data/ski.db
-    depends_on:
-      - selenium-hub
-    command: ["python3", "scrapers/scraper_steamboat.py"]
-    profiles:
-      - steamboat
-
-  # ARM64 Selenium Hub
-  selenium-hub:
-    image: seleniarm/hub:latest
-    container_name: selenium-hub
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "4444:4444"
-    environment:
-      - GRID_MAX_SESSION=20
-      - GRID_BROWSER_TIMEOUT=30
-      - GRID_TIMEOUT=30
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - app
 
-  # ARM64 Chromium Node
-  chromium-node:
-    image: seleniarm/node-chromium:latest
+  # Backend API Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: corduroy-backend
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:${POSTGRES_USER}}:${POSTGRES_PASSWORD:${POSTGRES_PASSWORD}}@postgres:5432/${POSTGRES_DB:${POSTGRES_DB}}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
     depends_on:
-      - selenium-hub
-    environment:
-      - SE_EVENT_BUS_HOST=selenium-hub
-      - SE_EVENT_BUS_PUBLISH_PORT=4442
-      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-      - NODE_MAX_SESSION=2
-      - NODE_MAX_INSTANCES=2
-    shm_size: '2g'
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    profiles:
+      - app
 
-# Note: Usage with Selenium Hub approach:
-# ./deploy.sh run copper       # Runs copper scraper with Selenium Grid
-# ./deploy.sh run loveland     # Runs loveland scraper with Selenium Grid  
-# ./deploy.sh run winterpark   # Runs winterpark scraper with Selenium Grid
-# ./deploy.sh run abasin       # Runs arapahoe basin scraper with Selenium Grid
-# ./deploy.sh run keystone     # Runs keystone scraper with Selenium Grid
-# ./deploy.sh run breckenridge # Runs breckenridge scraper with Selenium Grid
-# ./deploy.sh run vail         # Runs vail scraper with Selenium Grid
-# ./deploy.sh run steamboat    # Runs steamboat scraper with Selenium Grid 
+  # Frontend Next.js Service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: corduroy-frontend
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_GRAPHQL_URL=${NEXT_PUBLIC_GRAPHQL_URL:-/graphql}
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    profiles:
+      - app
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: corduroy-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - frontend
+      - backend
+    restart: unless-stopped
+    profiles:
+      - app
+
+volumes:
+  postgres_data:

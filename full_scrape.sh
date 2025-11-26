@@ -3,7 +3,7 @@ echo "Step 1: Starting Selenium Grid (Hub + Chromium Node)..."
 echo "----------------------------------------"
 
 # Start selenium hub and chromium node in detached mode
-docker-compose up -d selenium-hub chromium-node
+docker-compose -f scrapers/docker-compose.yml up -d selenium-hub chromium-node
 
 # Wait for selenium hub to be ready
 echo "⏳ Waiting for Selenium Hub to be ready..."
@@ -33,7 +33,7 @@ for i in "${!scrapers[@]}"; do
     echo "📍 Scraping ${name}..."
     
     # Run the scraper using docker-compose with the specific profile
-    docker-compose --profile "${profile}" up "${profile}-scraper"
+    docker-compose -f scrapers/docker-compose.yml --profile "${profile}" up "${profile}-scraper"
     
     # Check exit code
     if [ $? -ne 0 ]; then
@@ -43,7 +43,7 @@ for i in "${!scrapers[@]}"; do
     fi
     
     # Clean up the scraper container
-    docker-compose --profile "${profile}" down "${profile}-scraper"
+    docker-compose -f scrapers/docker-compose.yml --profile "${profile}" down "${profile}-scraper"
 done
 
 echo ""
@@ -51,7 +51,7 @@ echo "Step 3: Stopping Selenium Grid..."
 echo "----------------------------------------"
 
 # Stop selenium hub and chromium node
-docker-compose down selenium-hub chromium-node
+docker-compose -f scrapers/docker-compose.yml down selenium-hub chromium-node
 
 echo ""
 echo "============================================="

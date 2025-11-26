@@ -1,0 +1,236 @@
+services:
+  # Database initialization service
+  # Note: DATABASE_URL should point to your PostgreSQL instance
+  # For local Docker: postgresql://ski_admin:password@postgres:5432/app (requires postgres service)
+  # For EC2 direct (with SSL): postgresql://ski_admin:password@your-ec2-ip:5432/app?sslmode=require
+  # For EC2 via SSH tunnel: postgresql://ski_admin:password@localhost:5432/app
+  db-init:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-db-init
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@your-ec2-ip:5432/app?sslmode=require}
+    command: ["python3", "init_db.py"]
+    profiles:
+      - init
+
+  # Copper Mountain Scraper using pre-built Seleniarm
+  copper-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-copper-scraper
+    environment:
+      - WEBSITE_URL=https://www.coppercolorado.com/the-mountain/trail-lift-info/winter-trail-report
+      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
+      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
+      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
+      - SSH_KEY_PATH=/root/.ssh/id_rsa
+      - SSH_PORT=${SSH_PORT:-22}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_copper.py"]
+    profiles:
+      - copper
+
+  # Loveland Scraper using pre-built Seleniarm
+  loveland-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-loveland-scraper
+    environment:
+      - WEBSITE_URL=https://skiloveland.com/trail-lift-report/
+      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
+      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
+      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
+      - SSH_KEY_PATH=/root/.ssh/id_rsa
+      - SSH_PORT=${SSH_PORT:-22}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_loveland.py"]
+    profiles:
+      - loveland
+
+  # Winter Park Scraper using pre-built Seleniarm
+  winterpark-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-winterpark-scraper
+    environment:
+      - WEBSITE_URL=https://www.winterparkresort.com/the-mountain/mountain-report#lift-and-trail-status
+      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
+      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
+      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
+      - SSH_KEY_PATH=/root/.ssh/id_rsa
+      - SSH_PORT=${SSH_PORT:-22}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_winterpark.py"]
+    profiles:
+      - winterpark
+
+  # Arapahoe Basin Scraper using pre-built Seleniarm
+  abasin-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-abasin-scraper
+    environment:
+      - WEBSITE_URL=https://www.arapahoebasin.com/snow-report/
+      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
+      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
+      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
+      - SSH_KEY_PATH=/root/.ssh/id_rsa
+      - SSH_PORT=${SSH_PORT:-22}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_abasin.py"]
+    profiles:
+      - abasin
+
+  # Keystone Scraper using pre-built Seleniarm
+  keystone-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-keystone-scraper
+    environment:
+      - WEBSITE_URL=https://www.keystoneresort.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
+      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
+      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
+      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
+      - SSH_KEY_PATH=/root/.ssh/id_rsa
+      - SSH_PORT=${SSH_PORT:-22}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_keystone.py"]
+    profiles:
+      - keystone
+
+  # Breckenridge Scraper using pre-built Seleniarm
+  breckenridge-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-breckenridge-scraper
+    environment:
+      - WEBSITE_URL=https://www.breckenridge.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
+      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
+      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
+      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
+      - SSH_KEY_PATH=/root/.ssh/id_rsa
+      - SSH_PORT=${SSH_PORT:-22}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_breckenridge.py"]
+    profiles:
+      - breckenridge
+
+  # Vail Scraper using pre-built Seleniarm
+  vail-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-vail-scraper
+    environment:
+      - WEBSITE_URL=https://www.vail.com/the-mountain/mountain-conditions/terrain-and-lift-status.aspx
+      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
+      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
+      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
+      - SSH_KEY_PATH=/root/.ssh/id_rsa
+      - SSH_PORT=${SSH_PORT:-22}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_vail.py"]
+    profiles:
+      - vail
+
+  # Steamboat Scraper using pre-built Seleniarm
+  steamboat-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-steamboat-scraper
+    environment:
+      - WEBSITE_URL=https://www.steamboat.com/the-mountain/mountain-report
+      - DATABASE_URL=${DATABASE_URL:-postgresql://ski_admin:password@localhost/app}
+      - SSH_HOST=${SSH_HOST:-${EC2_HOST}}
+      - SSH_USERNAME=${SSH_USERNAME:-ubuntu}
+      - SSH_KEY_PATH=/root/.ssh/id_rsa
+      - SSH_PORT=${SSH_PORT:-22}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    volumes:
+      - ${SSH_KEY_PATH:-~/.ssh/id_rsa}:/root/.ssh/id_rsa:ro
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_steamboat.py"]
+    profiles:
+      - steamboat
+
+  # ARM64 Selenium Hub
+  selenium-hub:
+    image: seleniarm/hub:latest
+    container_name: selenium-hub
+    ports:
+      - "4444:4444"
+    environment:
+      - GRID_MAX_SESSION=20
+      - GRID_BROWSER_TIMEOUT=30
+      - GRID_TIMEOUT=30
+
+  # ARM64 Chromium Node
+  chromium-node:
+    image: seleniarm/node-chromium:latest
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+      - NODE_MAX_SESSION=2
+      - NODE_MAX_INSTANCES=2
+    shm_size: '2g'
+
+# Note: Usage with Selenium Hub approach:
+# cd scrapers
+# docker-compose --profile copper run copper-scraper       # Runs copper scraper with Selenium Grid
+# docker-compose --profile loveland run loveland-scraper   # Runs loveland scraper with Selenium Grid  
+# docker-compose --profile winterpark run winterpark-scraper # Runs winterpark scraper with Selenium Grid
+# docker-compose --profile abasin run abasin-scraper       # Runs arapahoe basin scraper with Selenium Grid
+# docker-compose --profile keystone run keystone-scraper   # Runs keystone scraper with Selenium Grid
+# docker-compose --profile breckenridge run breckenridge-scraper # Runs breckenridge scraper with Selenium Grid
+# docker-compose --profile vail run vail-scraper           # Runs vail scraper with Selenium Grid
+# docker-compose --profile steamboat run steamboat-scraper # Runs steamboat scraper with Selenium Grid
+

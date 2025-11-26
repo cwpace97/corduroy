@@ -1,8 +1,8 @@
-CREATE TABLE IF NOT EXISTS runs (
-    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    run_id TEXT GENERATED ALWAYS AS (lower(hex(quote(location || run_name)))) STORED,
+CREATE TABLE IF NOT EXISTS SKI_DATA.runs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    run_id TEXT GENERATED ALWAYS AS (md5(location || run_name)) STORED,
     location TEXT NOT NULL,
-    location_id TEXT GENERATED ALWAYS AS (lower(hex(quote(location)))) STORED,
+    location_id TEXT GENERATED ALWAYS AS (md5(location)) STORED,
     run_name TEXT NOT NULL,
     run_difficulty TEXT,
     run_status TEXT NOT NULL,

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """FastAPI GraphQL server for ski resort data"""
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from strawberry.fastapi import GraphQLRouter
@@ -14,10 +15,18 @@ schema = strawberry.Schema(query=Query)
 # Create FastAPI app
 app = FastAPI(title="Ski Resort API", version="1.0.0")
 
-# Configure CORS
+# Configure CORS - allow origins from environment variable or default to localhost
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if allowed_origins_env:
+    # Split comma-separated origins from environment variable
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",")]
+else:
+    # Default to localhost for development
+    allowed_origins = ["http://localhost:5173", "http://localhost:3000", "http://localhost:5174"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:5174"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

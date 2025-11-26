@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
 """GraphQL resolvers for querying ski resort data"""
 
-import sqlite3
+import psycopg2
+import psycopg2.extras
+import os
 from typing import List, Optional
-from pathlib import Path
 from .schema import ResortSummary, Lift, Run, RunsByDifficulty, HistoryDataPoint, RecentlyOpened, GlobalRecentlyOpened, RecentlyOpenedWithLocation
 
 
-# Database path
-DB_PATH = Path(__file__).parent.parent / "ski.db"
+# Database URL from environment variable
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 def get_db_connection():
     """Create and return a database connection"""
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL)
     return conn
 
 
 def get_all_resorts() -> List[ResortSummary]:
     """Get summary data for all ski resorts"""
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     # Get all unique locations
-    cursor.execute("SELECT DISTINCT location FROM v_locations ORDER BY location")
+    cursor.execute("SELECT DISTINCT location FROM SKI_DATA.v_locations ORDER BY location")
     locations = [row['location'] for row in cursor.fetchall()]
     
     resorts = []
@@ -40,7 +40,7 @@ def get_all_resorts() -> List[ResortSummary]:
 def get_resort_by_location(location: str) -> Optional[ResortSummary]:
     """Get detailed data for a specific resort"""
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     # Get current lifts for this location with date opened
     cursor.execute("""
@@ -50,12 +50,12 @@ def get_resort_by_location(location: str) -> Optional[ResortSummary]:
             v.lift_status, 
             v.updated_date,
             (SELECT MIN(updated_date) 
-             FROM lifts 
+             FROM SKI_DATA.lifts 
              WHERE location = v.location 
              AND lift_name = v.lift_name 
              AND lift_status = 'true') as date_opened
-        FROM v_lifts_current v
-        WHERE v.location = ?
+        FROM SKI_DATA.v_lifts_current v
+        WHERE v.location = %s
         ORDER BY v.lift_name
     """, (location,))
     
@@ -91,12 +91,12 @@ def get_resort_by_location(location: str) -> Optional[ResortSummary]:
             v.run_groomed, 
             v.updated_date,
             (SELECT MIN(updated_date) 
-             FROM runs 
+             FROM SKI_DATA.runs 
              WHERE location = v.location 
              AND run_name = v.run_name 
              AND run_status = 'true') as date_opened
-        FROM v_runs_current v
-        WHERE v.location = ?
+        FROM SKI_DATA.v_runs_current v
+        WHERE v.location = %s
         ORDER BY v.run_name
     """, (location,))
     
@@ -153,8 +153,8 @@ def get_resort_by_location(location: str) -> Optional[ResortSummary]:
     # Get lifts history (last 7 days)
     cursor.execute("""
         SELECT updated_date as date, open_count
-        FROM v_lifts_history
-        WHERE location = ?
+        FROM SKI_DATA.v_lifts_history
+        WHERE location = %s
         ORDER BY updated_date DESC
         LIMIT 7
     """, (location,))
@@ -168,8 +168,8 @@ def get_resort_by_location(location: str) -> Optional[ResortSummary]:
     # Get runs history (last 7 days)
     cursor.execute("""
         SELECT updated_date as date, open_count
-        FROM v_runs_history
-        WHERE location = ?
+        FROM SKI_DATA.v_runs_history
+        WHERE location = %s
         ORDER BY updated_date DESC
         LIMIT 7
     """, (location,))
@@ -183,8 +183,8 @@ def get_resort_by_location(location: str) -> Optional[ResortSummary]:
     # Get recently opened lifts (top 3)
     cursor.execute("""
         SELECT lift_name, MIN(updated_date) as date_opened
-        FROM lifts
-        WHERE location = ? AND lift_status = 'true'
+        FROM SKI_DATA.lifts
+        WHERE location = %s AND lift_status = 'true'
         GROUP BY lift_name
         ORDER BY date_opened DESC
         LIMIT 3
@@ -199,8 +199,8 @@ def get_resort_by_location(location: str) -> Optional[ResortSummary]:
     # Get recently opened runs (top 3)
     cursor.execute("""
         SELECT run_name, MIN(updated_date) as date_opened
-        FROM runs
-        WHERE location = ? AND run_status = 'true'
+        FROM SKI_DATA.runs
+        WHERE location = %s AND run_status = 'true'
         GROUP BY run_name
         ORDER BY date_opened DESC
         LIMIT 3
@@ -247,12 +247,12 @@ def get_resort_by_location(location: str) -> Optional[ResortSummary]:
 def get_global_recently_opened() -> GlobalRecentlyOpened:
     """Get recently opened lifts and runs across all resorts"""
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     # Get top 10 recently opened lifts across all locations
     cursor.execute("""
         SELECT lift_name, location, MIN(updated_date) as date_opened
-        FROM lifts
+        FROM SKI_DATA.lifts
         WHERE lift_status = 'true'
         GROUP BY location, lift_name
         ORDER BY date_opened DESC
@@ -272,7 +272,7 @@ def get_global_recently_opened() -> GlobalRecentlyOpened:
     # Get top 10 recently opened runs across all locations
     cursor.execute("""
         SELECT run_name, location, MIN(updated_date) as date_opened
-        FROM runs
+        FROM SKI_DATA.runs
         WHERE run_status = 'true'
         GROUP BY location, run_name
         ORDER BY date_opened DESC

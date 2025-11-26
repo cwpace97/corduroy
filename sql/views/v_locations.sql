@@ -1,14 +1,14 @@
-CREATE VIEW IF NOT EXISTS v_locations AS
+CREATE OR REPLACE VIEW SKI_DATA.v_locations AS
 SELECT DISTINCT
     location,
-    LOWER(HEX(QUOTE(location))) AS location_id,
+    md5(location) AS location_id,
     MAX(updated_date) AS updated_date
-FROM runs
+FROM SKI_DATA.runs
 GROUP BY location
 UNION
 SELECT DISTINCT
     location,
-    LOWER(HEX(QUOTE(location))) AS location_id,
+    md5(location) AS location_id,
     MAX(updated_date) AS updated_date
-FROM lifts
+FROM SKI_DATA.lifts
 GROUP BY location;

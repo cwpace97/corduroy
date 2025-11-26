@@ -21,11 +21,9 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 COPY scrapers/ ./scrapers/
 COPY init_db.py .
 
-# Create data directory for database
-RUN mkdir -p /data
-
-# Set environment variables for database path
-ENV DB_PATH=/data/ski.db
+# Note: DATABASE_URL and SSH tunnel config are set via environment variables
+# in docker-compose.yml, not hardcoded here
 
 # Default command (can be overridden)
 CMD ["python3", "-c", "print('Ski scraper container ready. Use docker-compose to run specific scrapers.')"]
+
