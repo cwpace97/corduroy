@@ -27,18 +27,22 @@ interface GetResortsData {
   globalRecentlyOpened: RecentlyOpenedData;
 }
 
+type TimePeriodFilter = 'all' | 'today' | 'last3days' | 'thisweek' | 'thismonth';
+
+const TIME_PERIOD_OPTIONS: { value: TimePeriodFilter; label: string }[] = [
+  { value: 'all', label: 'All Time' },
+  { value: 'today', label: 'Opened Today' },
+  { value: 'last3days', label: 'Last 3 Days' },
+  { value: 'thisweek', label: 'This Week' },
+  { value: 'thismonth', label: 'This Month' },
+];
+
 export default function RecentsPage() {
   const { loading, error, data } = useQuery<GetResortsData>(GET_RESORTS);
   const [selectedResorts, setSelectedResorts] = useState<string[]>([]);
-  const [selectedLiftTypes, setSelectedLiftTypes] = useState<string[]>([]);
+  const [selectedLiftCategories, setSelectedLiftCategories] = useState<string[]>([]);
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
-
-  // Get lift type from resort data
-  const getLiftType = (liftName: string, location: string): string | null => {
-    const resort = data?.resorts?.find(r => r.location === location);
-    const lift = resort?.lifts?.find(l => l.liftName === liftName);
-    return lift?.liftType || null;
-  };
+  const [selectedTimePeriod, setSelectedTimePeriod] = useState<TimePeriodFilter>('all');
 
   // Get run difficulty from resort data
   const getRunDifficulty = (runName: string, location: string): string | null => {
@@ -67,13 +71,36 @@ export default function RecentsPage() {
     return [...new Set([...liftsLocations, ...runsLocations])].sort();
   }, [data]);
 
-  // Get unique lift types from the data
-  const liftTypes = useMemo(() => {
+  // Get unique lift categories from the data, sorted by lift size (descending)
+  const liftCategories = useMemo(() => {
     if (!data?.globalRecentlyOpened?.lifts) return [];
-    const types = data.globalRecentlyOpened.lifts
-      .map(lift => getLiftType(lift.name, lift.location))
-      .filter((type): type is string => type !== null && type !== '');
-    return [...new Set(types)].sort();
+    
+    // Build a map of category -> max size for that category
+    const categoryToSize = new Map<string, number>();
+    let hasUnknown = false;
+    
+    data.globalRecentlyOpened.lifts.forEach(lift => {
+      if (!lift.liftCategory || lift.liftCategory === 'Unknown') {
+        hasUnknown = true;
+      } else {
+        const currentSize = categoryToSize.get(lift.liftCategory) ?? 0;
+        const liftSize = lift.liftSize ?? 0;
+        if (liftSize > currentSize) {
+          categoryToSize.set(lift.liftCategory, liftSize);
+        }
+      }
+    });
+    
+    // Sort categories by size (descending), then add Unknown at the end if present
+    const sortedCategories = Array.from(categoryToSize.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([category]) => category);
+    
+    if (hasUnknown) {
+      sortedCategories.push('Unknown');
+    }
+    
+    return sortedCategories;
   }, [data]);
 
   // Get unique run difficulties from the data
@@ -85,31 +112,103 @@ export default function RecentsPage() {
     return [...new Set(difficulties)].sort();
   }, [data]);
 
-  // Filter lifts based on selected resorts and lift types
+  // Helper function to parse date string as local date (YYYY-MM-DD format)
+  // The database stores dates in America/Denver timezone as YYYY-MM-DD
+  const parseDateAsLocal = (dateStr: string): Date => {
+    // Parse YYYY-MM-DD format directly to avoid timezone issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day); // month is 0-indexed
+  };
+
+  // Get today's date in a comparable format (YYYY-MM-DD)
+  const getTodayString = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper function to check if a date falls within the selected time period
+  const isWithinTimePeriod = (dateOpened: string, period: TimePeriodFilter): boolean => {
+    if (period === 'all') return true;
+    
+    // Parse the opened date as local date components
+    const openedDate = parseDateAsLocal(dateOpened);
+    const now = new Date();
+    
+    // Get today at midnight (local time)
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (period) {
+      case 'today':
+        // Compare date strings directly for most reliable comparison
+        return dateOpened === getTodayString();
+      
+      case 'last3days': {
+        const threeDaysAgo = new Date(today);
+        threeDaysAgo.setDate(today.getDate() - 2); // Include today + 2 previous days = 3 days
+        return openedDate >= threeDaysAgo && openedDate <= today;
+      }
+      
+      case 'thisweek': {
+        // Get Monday of current week
+        const dayOfWeek = now.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Sunday is 0
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + mondayOffset);
+        
+        // Get Sunday of current week
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        
+        return openedDate >= monday && openedDate <= sunday;
+      }
+      
+      case 'thismonth': {
+        const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        return openedDate >= firstOfMonth && openedDate <= lastOfMonth;
+      }
+      
+      default:
+        return true;
+    }
+  };
+
+  // Filter lifts based on selected resorts, lift categories, and time period
   const filteredLifts = useMemo(() => {
     if (!data?.globalRecentlyOpened?.lifts) return [];
     
     return data.globalRecentlyOpened.lifts.filter(lift => {
+      // Time period filter
+      if (!isWithinTimePeriod(lift.dateOpened, selectedTimePeriod)) {
+        return false;
+      }
       // Resort filter
       if (selectedResorts.length > 0 && !selectedResorts.includes(lift.location)) {
         return false;
       }
-      // Lift type filter
-      if (selectedLiftTypes.length > 0) {
-        const liftType = getLiftType(lift.name, lift.location);
-        if (!liftType || !selectedLiftTypes.includes(liftType)) {
+      // Lift category filter
+      if (selectedLiftCategories.length > 0) {
+        const liftCategory = lift.liftCategory || 'Unknown';
+        if (!selectedLiftCategories.includes(liftCategory)) {
           return false;
         }
       }
       return true;
     });
-  }, [data, selectedResorts, selectedLiftTypes]);
+  }, [data, selectedResorts, selectedLiftCategories, selectedTimePeriod]);
 
-  // Filter runs based on selected resorts and difficulties
+  // Filter runs based on selected resorts, difficulties, and time period
   const filteredRuns = useMemo(() => {
     if (!data?.globalRecentlyOpened?.runs) return [];
     
     return data.globalRecentlyOpened.runs.filter(run => {
+      // Time period filter
+      if (!isWithinTimePeriod(run.dateOpened, selectedTimePeriod)) {
+        return false;
+      }
       // Resort filter
       if (selectedResorts.length > 0 && !selectedResorts.includes(run.location)) {
         return false;
@@ -123,7 +222,7 @@ export default function RecentsPage() {
       }
       return true;
     });
-  }, [data, selectedResorts, selectedDifficulties]);
+  }, [data, selectedResorts, selectedDifficulties, selectedTimePeriod]);
 
   const getDifficultyColor = (difficulty: string | null): string => {
     if (!difficulty) return 'gray';
@@ -186,7 +285,11 @@ export default function RecentsPage() {
   }
 
   const hasData = filteredLifts.length > 0 || filteredRuns.length > 0;
-  const hasActiveFilters = selectedResorts.length > 0 || selectedLiftTypes.length > 0 || selectedDifficulties.length > 0;
+  const hasActiveFilters = selectedResorts.length > 0 || selectedLiftCategories.length > 0 || selectedDifficulties.length > 0 || selectedTimePeriod !== 'all';
+
+  const handleTimePeriodChange = (value: string) => {
+    setSelectedTimePeriod(value as TimePeriodFilter);
+  };
 
   return (
     <Container fluid px="xl" py="md">
@@ -208,6 +311,29 @@ export default function RecentsPage() {
         }}
       >
         <Stack gap="md">
+          {/* Time Period Filter */}
+          <Box>
+            <Group gap="xs" mb="sm">
+              <Text c="dimmed" size="sm" fw={500}>
+                Filter by Time Opened
+              </Text>
+            </Group>
+            <Chip.Group multiple={false} value={selectedTimePeriod} onChange={handleTimePeriodChange}>
+              <Group gap="xs">
+                {TIME_PERIOD_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.value}
+                    value={option.value}
+                    variant="outline"
+                    color="violet"
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </Group>
+            </Chip.Group>
+          </Box>
+
           {/* Resort Filter */}
           <Box>
             <Text c="dimmed" size="sm" mb="sm" fw={500}>
@@ -229,21 +355,21 @@ export default function RecentsPage() {
             </Chip.Group>
           </Box>
 
-          {/* Lift Type Filter */}
+          {/* Lift Category Filter */}
           <Box>
             <Text c="dimmed" size="sm" mb="sm" fw={500}>
-              Filter by Lift Type
+              Filter by Lift Category
             </Text>
-            <Chip.Group multiple value={selectedLiftTypes} onChange={setSelectedLiftTypes}>
+            <Chip.Group multiple value={selectedLiftCategories} onChange={setSelectedLiftCategories}>
               <Group gap="xs">
-                {liftTypes.map((type) => (
+                {liftCategories.map((category) => (
                   <Chip
-                    key={type}
-                    value={type}
+                    key={category}
+                    value={category}
                     variant="outline"
                     color="teal"
                   >
-                    {type}
+                    {category}
                   </Chip>
                 ))}
               </Group>
@@ -291,12 +417,10 @@ export default function RecentsPage() {
           {/* Lifts Column */}
           <Box>
             <Title order={3} c="white" mb="md">
-              🚡 Lifts ({filteredLifts.length})
+              Lifts ({filteredLifts.length})
             </Title>
             <Stack gap="xs">
-              {filteredLifts.map((lift, index) => {
-                const liftType = getLiftType(lift.name, lift.location);
-                return (
+              {filteredLifts.map((lift, index) => (
                   <Paper
                     key={`${lift.location}-${lift.name}-${index}`}
                     p="sm"
@@ -319,9 +443,9 @@ export default function RecentsPage() {
                         </Group>
                       </Stack>
                       <Group gap="xs">
-                        {liftType && (
+                        {lift.liftType && (
                           <Badge variant="outline" color="gray" size="sm">
-                            {liftType}
+                            {lift.liftType}
                           </Badge>
                         )}
                         <Badge variant="light" color="teal" size="sm">
@@ -330,15 +454,14 @@ export default function RecentsPage() {
                       </Group>
                     </Group>
                   </Paper>
-                );
-              })}
+                ))}
             </Stack>
           </Box>
 
           {/* Runs Column */}
           <Box>
             <Title order={3} c="white" mb="md">
-              ⛷️ Runs ({filteredRuns.length})
+              Runs ({filteredRuns.length})
             </Title>
             <Stack gap="xs">
               {filteredRuns.map((run, index) => {

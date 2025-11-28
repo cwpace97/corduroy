@@ -7,6 +7,9 @@ export interface RecentlyOpenedItem {
   name: string;
   location: string;
   dateOpened: string;
+  liftType?: string;
+  liftCategory?: string;
+  liftSize?: number;
 }
 
 export interface RecentlyOpenedData {

@@ -166,12 +166,6 @@ export default function DetailsPage() {
   return (
     <Container size="xl" py="xl">
       <Stack gap="lg">
-        <Anchor component={Link} href="/" c="dimmed">
-          <Group gap="xs">
-            <IconArrowLeft size={20} />
-            <Text>Back to Dashboard</Text>
-          </Group>
-        </Anchor>
 
         <div>
           <Title order={1} c="white" mb="xs">

@@ -47,7 +47,7 @@ export function MegaHeader() {
   ));
 
   return (
-    <Box pb={120}>
+    <Box pb={60}>
       <header className={classes.header}>
         <Group justify="space-between" h="100%">
 

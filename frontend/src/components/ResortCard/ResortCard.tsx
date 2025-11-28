@@ -12,6 +12,7 @@ import {
 import { IconCloud } from '@tabler/icons-react';
 import { MiniLineChart } from '@/components/MiniLineChart/MiniLineChart';
 import { StatsRing } from '@/components/StatsRing/StatsRing';
+import styles from './ResortCard.module.css';
 
 export interface Lift {
   liftName: string;
@@ -69,8 +70,7 @@ export function ResortCard({ resort }: ResortCardProps) {
         overflow: 'hidden',
       }}
     >
-      <Group gap="md" wrap="nowrap" align="center">
-        
+      <Group gap="md" wrap="nowrap" align="center" className={styles.desktopLayout}>
         {/* 1. Resort Name */}
         <Box style={{ minWidth: 140 }}>
           <Title order={3} c="white" size="h4">
@@ -161,8 +161,74 @@ export function ResortCard({ resort }: ResortCardProps) {
             totalCount={resort.totalRuns}
           />
         </Box>
-
       </Group>
+
+      {/* Mobile Layout - only visible on small screens */}
+      <Box className={styles.mobileLayout}>
+        {/* Row 1: Name + Weather */}
+        <Group gap="md" justify="space-between" align="center" className={styles.mobileRow}>
+          <Box>
+            <Title order={3} c="white" size="h4">
+              {resort.location}
+            </Title>
+            <Text c="dimmed" size="xs">
+              Updated: {resort.lastUpdated}
+            </Text>
+          </Box>
+          <Stack align="center" gap={4}>
+            <IconCloud size={28} style={{ color: 'var(--mantine-color-dark-3)' }} />
+            <Text c="dimmed" size="xs">
+              Weather
+            </Text>
+          </Stack>
+        </Group>
+
+        {/* Row 2: Lifts Stats + Chart */}
+        <Group gap="md" wrap="nowrap" align="center" className={styles.mobileRow}>
+          <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <StatsRing
+              label="Lifts"
+              open={resort.openLifts}
+              total={resort.totalLifts}
+              color="teal"
+            />
+          </Box>
+          <Box style={{ flex: 1 }}>
+            <Text c="dimmed" size="xs" mb={4}>
+              Lifts 7-Day
+            </Text>
+            <MiniLineChart
+              data={resort.liftsHistory}
+              color="teal"
+              maxValue={resort.totalLifts}
+              totalCount={resort.totalLifts}
+            />
+          </Box>
+        </Group>
+
+        {/* Row 3: Runs Stats + Chart */}
+        <Group gap="md" wrap="nowrap" align="center" className={styles.mobileRow}>
+          <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <StatsRing
+              label="Runs"
+              open={resort.openRuns}
+              total={resort.totalRuns}
+              color="blue"
+            />
+          </Box>
+          <Box style={{ flex: 1 }}>
+            <Text c="dimmed" size="xs" mb={4}>
+              Runs 7-Day
+            </Text>
+            <MiniLineChart
+              data={resort.runsHistory}
+              color="blue"
+              maxValue={resort.totalRuns}
+              totalCount={resort.totalRuns}
+            />
+          </Box>
+        </Group>
+      </Box>
     </Card>
   );
 }

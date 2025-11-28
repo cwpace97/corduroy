@@ -56,6 +56,9 @@ class RecentlyOpenedWithLocation:
     name: str
     location: str
     date_opened: str
+    lift_type: Optional[str] = None
+    lift_category: Optional[str] = None
+    lift_size: Optional[int] = None
 
 
 @strawberry.type

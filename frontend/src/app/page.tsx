@@ -4,6 +4,7 @@ import { useQuery } from '@apollo/client/react';
 import {
   Container,
   Text,
+  Title,
   Center,
   Loader,
   Alert,
@@ -48,6 +49,13 @@ export default function HomePage() {
 
   return (
     <Container fluid px="xl" py="md">
+      <Title order={1} c="white" mb="xs">
+        Resort Overview
+      </Title>
+      <Text c="dimmed" mb="lg">
+        Current lift and run status across all Colorado resorts
+      </Text>
+
       <Stack gap="sm">
         {data?.resorts?.map((resort) => (
           <ResortCard key={resort.location} resort={resort} />

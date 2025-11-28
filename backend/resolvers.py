@@ -249,14 +249,23 @@ def get_global_recently_opened() -> GlobalRecentlyOpened:
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
-    # Get top 10 recently opened lifts across all locations
+    # Get recently opened lifts across all locations with lift category from mapping table
     cursor.execute("""
-        SELECT lift_name, location, MIN(updated_date) as date_opened
-        FROM SKI_DATA.lifts
-        WHERE lift_status = 'true'
-        GROUP BY location, lift_name
+        SELECT 
+            l.lift_name, 
+            l.location, 
+            MIN(l.updated_date) as date_opened,
+            v.lift_type,
+            COALESCE(m.lift_category, 'Unknown') as lift_category,
+            m.lift_size
+        FROM SKI_DATA.lifts l
+        LEFT JOIN SKI_DATA.v_lifts_current v 
+            ON l.location = v.location AND l.lift_name = v.lift_name
+        LEFT JOIN SKI_DATA.ref__lift_mapping m 
+            ON v.lift_type = m.lift_type
+        WHERE l.lift_status = 'true'
+        GROUP BY l.location, l.lift_name, v.lift_type, m.lift_category, m.lift_size
         ORDER BY date_opened DESC
-        LIMIT 10
     """)
     
     lifts_data = cursor.fetchall()
@@ -264,7 +273,10 @@ def get_global_recently_opened() -> GlobalRecentlyOpened:
         RecentlyOpenedWithLocation(
             name=row['lift_name'],
             location=row['location'],
-            date_opened=row['date_opened']
+            date_opened=row['date_opened'],
+            lift_type=row['lift_type'],
+            lift_category=row['lift_category'],
+            lift_size=row['lift_size']
         )
         for row in lifts_data
     ]
@@ -276,7 +288,6 @@ def get_global_recently_opened() -> GlobalRecentlyOpened:
         WHERE run_status = 'true'
         GROUP BY location, run_name
         ORDER BY date_opened DESC
-        LIMIT 10
     """)
     
     runs_data = cursor.fetchall()

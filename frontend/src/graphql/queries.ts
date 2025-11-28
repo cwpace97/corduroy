@@ -45,6 +45,9 @@ export const GET_RESORTS = gql`
         name
         location
         dateOpened
+        liftType
+        liftCategory
+        liftSize
       }
       runs {
         name
