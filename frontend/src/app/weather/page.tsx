@@ -86,32 +86,34 @@ export default function WeatherPage() {
 
   return (
     <Container fluid px="xl" py="md">
-      <Group justify="space-between" align="flex-start" mb="lg">
-        <Box>
-          <Group gap="sm" mb="xs">
-            {/* <IconSnowflake size={28} style={{ color: 'var(--mantine-color-cyan-5)' }} /> */}
-            <Title order={1} c="white">
+      <Stack gap="md" mb="lg">
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+          <Box>
+            <Title order={1} c="white" mb="xs">
               Weather Conditions
             </Title>
-          </Group>
-          <Text c="dimmed">
-            7-day weather trends from nearby SNOTEL stations
-          </Text>
-        </Box>
+            <Text c="dimmed">
+              7-day weather trends from nearby SNOTEL stations
+            </Text>
+          </Box>
+        </Group>
 
-        <SegmentedControl
-          value={sortBy}
-          onChange={(value) => setSortBy(value as SortOption)}
-          data={[
-            { label: 'Most Snow', value: 'snow' },
-            { label: 'Best Conditions', value: 'conditions' },
-            { label: 'A-Z', value: 'name' },
-          ]}
-          style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-          }}
-        />
-      </Group>
+        <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <SegmentedControl
+            value={sortBy}
+            onChange={(value) => setSortBy(value as SortOption)}
+            data={[
+              { label: 'A-Z', value: 'name' },
+              { label: 'Snow', value: 'snow' },
+              { label: 'Conditions', value: 'conditions' },
+            ]}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              minWidth: 'fit-content',
+            }}
+          />
+        </Box>
+      </Stack>
 
       {!hasData ? (
         <Center mt="xl">

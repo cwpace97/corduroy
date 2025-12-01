@@ -125,31 +125,36 @@ export default function HomePage() {
 
   return (
     <Container fluid px="xl" py="md">
-      <Group justify="space-between" align="flex-start" mb="lg">
-        <Box>
-          <Title order={1} c="white" mb="xs">
-            Resort Overview
-          </Title>
-          <Text c="dimmed">
-            Current lift and run status across all Colorado resorts
-          </Text>
-        </Box>
+      <Stack gap="md" mb="lg">
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+          <Box>
+            <Title order={1} c="white" mb="xs">
+              Resort Overview
+            </Title>
+            <Text c="dimmed">
+              Current lift and run status across all Colorado resorts
+            </Text>
+          </Box>
+        </Group>
 
-        <SegmentedControl
-          value={sortBy}
-          onChange={(value) => setSortBy(value as SortOption)}
-          data={[
-            { label: 'A-Z', value: 'name' },
-            { label: 'Total Runs Open', value: 'runs' },
-            { label: 'Total Lifts Open', value: 'lifts' },
-            { label: 'Total Snow Depth', value: 'snow' },
-            { label: 'Best Conditions', value: 'conditions' },
-          ]}
-          style={{
-            background: 'rgba(255, 255, 255, 0.05)',
-          }}
-        />
-      </Group>
+        <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <SegmentedControl
+            value={sortBy}
+            onChange={(value) => setSortBy(value as SortOption)}
+            data={[
+              { label: 'A-Z', value: 'name' },
+              { label: 'Runs', value: 'runs' },
+              { label: 'Lifts', value: 'lifts' },
+              { label: 'Snow', value: 'snow' },
+              { label: 'Conditions', value: 'conditions' },
+            ]}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              minWidth: 'fit-content',
+            }}
+          />
+        </Box>
+      </Stack>
 
       <Stack gap="sm">
         {sortedResorts.map((resort) => {
