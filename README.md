@@ -71,7 +71,7 @@ python init_db.py
 ### Update Resort Data
 
 ```bash
-./full_scrape.sh
+./refresh_resorts.sh
 
 # Or for a full reset
 ./reset_and_scrape.sh

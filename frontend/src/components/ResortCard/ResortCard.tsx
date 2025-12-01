@@ -9,9 +9,9 @@ import {
   Divider,
   Box,
 } from '@mantine/core';
-import { IconCloud } from '@tabler/icons-react';
 import { MiniLineChart } from '@/components/MiniLineChart/MiniLineChart';
 import { StatsRing } from '@/components/StatsRing/StatsRing';
+import { WeatherSummary, WeatherTrend, DailyData } from '@/components/WeatherSummary/WeatherSummary';
 import styles from './ResortCard.module.css';
 
 export interface Lift {
@@ -56,9 +56,11 @@ export interface Resort {
 
 export interface ResortCardProps {
   resort: Resort;
+  weatherTrend?: WeatherTrend | null;
+  dailyData?: DailyData[];
 }
 
-export function ResortCard({ resort }: ResortCardProps) {
+export function ResortCard({ resort, weatherTrend, dailyData }: ResortCardProps) {
   return (
     <Card
       radius="md"
@@ -83,7 +85,7 @@ export function ResortCard({ resort }: ResortCardProps) {
 
         <Divider orientation="vertical" color="dark.4" />
 
-        {/* 2. Weather Placeholder */}
+        {/* 2. Weather Summary */}
         <Box
           style={{
             display: 'flex',
@@ -92,12 +94,7 @@ export function ResortCard({ resort }: ResortCardProps) {
             minWidth: 140,
           }}
         >
-          <Stack align="center" gap={4}>
-            <IconCloud size={32} style={{ color: 'var(--mantine-color-dark-3)' }} />
-            <Text c="dimmed" size="xs">
-              Weather
-            </Text>
-          </Stack>
+          <WeatherSummary trend={weatherTrend ?? null} dailyData={dailyData} compact />
         </Box>
 
         <Divider orientation="vertical" color="dark.4" />
@@ -175,12 +172,7 @@ export function ResortCard({ resort }: ResortCardProps) {
               Updated: {resort.lastUpdated}
             </Text>
           </Box>
-          <Stack align="center" gap={4}>
-            <IconCloud size={28} style={{ color: 'var(--mantine-color-dark-3)' }} />
-            <Text c="dimmed" size="xs">
-              Weather
-            </Text>
-          </Stack>
+          <WeatherSummary trend={weatherTrend ?? null} dailyData={dailyData} compact />
         </Group>
 
         {/* Row 2: Lifts Stats + Chart */}

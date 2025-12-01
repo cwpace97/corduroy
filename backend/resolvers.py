@@ -5,7 +5,12 @@ import psycopg2
 import psycopg2.extras
 import os
 from typing import List, Optional
-from .schema import ResortSummary, Lift, Run, RunsByDifficulty, HistoryDataPoint, RecentlyOpened, GlobalRecentlyOpened, RecentlyOpenedWithLocation
+from .schema import (
+    ResortSummary, Lift, Run, RunsByDifficulty, HistoryDataPoint, 
+    RecentlyOpened, GlobalRecentlyOpened, RecentlyOpenedWithLocation,
+    WeatherDataPoint, DailyWeatherSummary, WeatherTrend, ResortWeatherSummary,
+    StationInfo, StationDailyData
+)
 
 
 # Database URL from environment variable
@@ -303,4 +308,306 @@ def get_global_recently_opened() -> GlobalRecentlyOpened:
     conn.close()
     
     return GlobalRecentlyOpened(lifts=lifts, runs=runs)
+
+
+def get_resort_weather(resort_name: str, days: int = 7) -> Optional[ResortWeatherSummary]:
+    """Get weather summary for a specific resort from all SNOTEL stations with weighted averages"""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # Normalize resort name for case-insensitive matching
+    resort_name_map = {
+        'arapahoe basin': 'Arapahoe Basin',
+        'a-basin': 'Arapahoe Basin',
+        'copper': 'Copper',
+        'copper mountain': 'Copper',
+        'loveland': 'Loveland',
+        'breckenridge': 'Breckenridge',
+        'breck': 'Breckenridge',
+        'winter park': 'Winter Park',
+        'keystone': 'Keystone',
+        'vail': 'Vail',
+        'crested butte': 'Crested Butte',
+        'steamboat': 'Steamboat',
+    }
+    
+    normalized_name = resort_name_map.get(resort_name.lower(), resort_name)
+    
+    # Get ALL SNOTEL stations for this resort (up to 3)
+    cursor.execute("""
+        SELECT 
+            rsm.station_triplet, 
+            rsm.distance_miles,
+            ss.station_name
+        FROM WEATHER_DATA.resort_station_mapping rsm
+        JOIN WEATHER_DATA.snotel_stations ss ON rsm.station_triplet = ss.station_triplet
+        WHERE rsm.resort_name = %s
+        ORDER BY rsm.distance_miles ASC
+        LIMIT 3
+    """, (normalized_name,))
+    
+    station_rows = cursor.fetchall()
+    if not station_rows:
+        conn.close()
+        return None
+    
+    # Build station info list
+    stations = [
+        StationInfo(
+            station_name=row['station_name'],
+            station_triplet=row['station_triplet'],
+            distance_miles=float(row['distance_miles'])
+        )
+        for row in station_rows
+    ]
+    
+    # Calculate inverse distance weights (closer stations have more weight)
+    # Use inverse distance weighting: weight = 1 / distance
+    # Add small epsilon to avoid division by zero for very close stations
+    epsilon = 0.1
+    weights = {}
+    total_weight = 0
+    for station in stations:
+        weight = 1.0 / (station.distance_miles + epsilon)
+        weights[station.station_triplet] = weight
+        total_weight += weight
+    
+    # Normalize weights to sum to 1
+    for triplet in weights:
+        weights[triplet] /= total_weight
+    
+    # Get daily data for each station
+    station_triplets = [s.station_triplet for s in stations]
+    triplets_tuple = tuple(station_triplets)
+    
+    cursor.execute("""
+        SELECT 
+            station_triplet,
+            observation_date::text as date,
+            AVG(snow_depth_in) as snow_depth_avg_in,
+            MAX(snow_depth_in) as snow_depth_max_in,
+            MIN(temp_observed_f) as temp_min_f,
+            MAX(temp_observed_f) as temp_max_f,
+            MAX(precip_accum_in) - MIN(precip_accum_in) as precip_total_in,
+            AVG(wind_speed_avg_mph) as wind_speed_avg_mph,
+            AVG(wind_direction_avg_deg) as wind_direction_avg_deg
+        FROM WEATHER_DATA.snotel_observations
+        WHERE station_triplet IN %s
+          AND observation_date >= CURRENT_DATE - INTERVAL '%s days'
+        GROUP BY station_triplet, observation_date
+        ORDER BY observation_date ASC, station_triplet ASC
+    """, (triplets_tuple, days))
+    
+    daily_rows = cursor.fetchall()
+    
+    # Organize data by date
+    daily_by_date = {}
+    for row in daily_rows:
+        date = row['date']
+        if date not in daily_by_date:
+            daily_by_date[date] = {}
+        daily_by_date[date][row['station_triplet']] = row
+    
+    # Build station lookup for names
+    station_lookup = {s.station_triplet: s for s in stations}
+    
+    # Calculate weighted averages for each day
+    daily_data = []
+    for date in sorted(daily_by_date.keys()):
+        date_data = daily_by_date[date]
+        
+        # Build per-station data for this date
+        station_data = []
+        for station in stations:
+            triplet = station.station_triplet
+            if triplet in date_data:
+                row = date_data[triplet]
+                station_data.append(StationDailyData(
+                    station_name=station.station_name,
+                    station_triplet=triplet,
+                    distance_miles=station.distance_miles,
+                    snow_depth_avg_in=float(row['snow_depth_avg_in']) if row['snow_depth_avg_in'] is not None else None,
+                ))
+        
+        # Calculate weighted averages
+        def weighted_avg(values_with_triplets):
+            """Calculate weighted average from list of (value, triplet) tuples"""
+            total = 0.0
+            weight_sum = 0.0
+            for val, triplet in values_with_triplets:
+                if val is not None:
+                    # Convert Decimal to float for multiplication
+                    total += float(val) * weights[triplet]
+                    weight_sum += weights[triplet]
+            return total / weight_sum if weight_sum > 0 else None
+        
+        snow_depths = [(float(date_data[t]['snow_depth_avg_in']), t) for t in date_data if date_data[t]['snow_depth_avg_in'] is not None]
+        snow_maxes = [(float(date_data[t]['snow_depth_max_in']), t) for t in date_data if date_data[t]['snow_depth_max_in'] is not None]
+        temp_mins = [(float(date_data[t]['temp_min_f']), t) for t in date_data if date_data[t]['temp_min_f'] is not None]
+        temp_maxes = [(float(date_data[t]['temp_max_f']), t) for t in date_data if date_data[t]['temp_max_f'] is not None]
+        precips = [(float(date_data[t]['precip_total_in']), t) for t in date_data if date_data[t]['precip_total_in'] is not None]
+        wind_speeds = [(float(date_data[t]['wind_speed_avg_mph']), t) for t in date_data if date_data[t]['wind_speed_avg_mph'] is not None]
+        wind_dirs = [(float(date_data[t]['wind_direction_avg_deg']), t) for t in date_data if date_data[t]['wind_direction_avg_deg'] is not None]
+        
+        daily_data.append(DailyWeatherSummary(
+            date=date,
+            snow_depth_avg_in=round(weighted_avg(snow_depths), 1) if snow_depths else None,
+            snow_depth_max_in=round(weighted_avg(snow_maxes), 1) if snow_maxes else None,
+            temp_min_f=round(weighted_avg(temp_mins), 1) if temp_mins else None,
+            temp_max_f=round(weighted_avg(temp_maxes), 1) if temp_maxes else None,
+            precip_total_in=round(weighted_avg(precips), 2) if precips else None,
+            wind_speed_avg_mph=round(weighted_avg(wind_speeds), 1) if wind_speeds else None,
+            wind_direction_avg_deg=round(weighted_avg(wind_dirs)) if wind_dirs else None,
+            station_data=station_data,
+        ))
+    
+    # Get hourly data (use weighted average from all stations)
+    cursor.execute("""
+        SELECT 
+            station_triplet,
+            observation_date::text as date,
+            observation_hour as hour,
+            snow_depth_in,
+            snow_water_equivalent_in,
+            temp_observed_f,
+            precip_accum_in,
+            wind_speed_avg_mph,
+            wind_speed_max_mph
+        FROM WEATHER_DATA.snotel_observations
+        WHERE station_triplet IN %s
+          AND observation_date >= CURRENT_DATE - INTERVAL '%s days'
+        ORDER BY observation_date ASC, observation_hour ASC, station_triplet ASC
+    """, (triplets_tuple, days))
+    
+    hourly_rows = cursor.fetchall()
+    
+    # Organize hourly data by (date, hour)
+    hourly_by_datetime = {}
+    for row in hourly_rows:
+        key = (row['date'], row['hour'])
+        if key not in hourly_by_datetime:
+            hourly_by_datetime[key] = {}
+        hourly_by_datetime[key][row['station_triplet']] = row
+    
+    # Calculate weighted averages for hourly data
+    hourly_data = []
+    for (date, hour) in sorted(hourly_by_datetime.keys()):
+        datetime_data = hourly_by_datetime[(date, hour)]
+        
+        def weighted_avg_hourly(field):
+            total = 0.0
+            weight_sum = 0.0
+            for triplet, row in datetime_data.items():
+                val = row[field]
+                if val is not None:
+                    total += float(val) * weights[triplet]
+                    weight_sum += weights[triplet]
+            return round(total / weight_sum, 1) if weight_sum > 0 else None
+        
+        hourly_data.append(WeatherDataPoint(
+            date=date,
+            hour=hour,
+            snow_depth_in=weighted_avg_hourly('snow_depth_in'),
+            snow_water_equivalent_in=weighted_avg_hourly('snow_water_equivalent_in'),
+            temp_observed_f=weighted_avg_hourly('temp_observed_f'),
+            precip_accum_in=weighted_avg_hourly('precip_accum_in'),
+            wind_speed_avg_mph=weighted_avg_hourly('wind_speed_avg_mph'),
+            wind_speed_max_mph=weighted_avg_hourly('wind_speed_max_mph'),
+        ))
+    
+    # Calculate trend based on weighted daily data
+    trend = _calculate_weather_trend(daily_data, hourly_data)
+    
+    conn.close()
+    
+    return ResortWeatherSummary(
+        resort_name=normalized_name,
+        stations=stations,
+        trend=trend,
+        daily_data=daily_data,
+        hourly_data=hourly_data,
+    )
+
+
+def _calculate_weather_trend(daily_data: List[DailyWeatherSummary], hourly_data: List[WeatherDataPoint]) -> WeatherTrend:
+    """Calculate weather trend from daily and hourly data"""
+    
+    # Get snow depth values that are not None
+    snow_depths = [d.snow_depth_avg_in for d in daily_data if d.snow_depth_avg_in is not None]
+    
+    # Calculate snow depth change
+    if len(snow_depths) >= 2:
+        first_half = snow_depths[:len(snow_depths)//2]
+        second_half = snow_depths[len(snow_depths)//2:]
+        first_avg = sum(first_half) / len(first_half) if first_half else 0
+        second_avg = sum(second_half) / len(second_half) if second_half else 0
+        snow_depth_change = second_avg - first_avg
+    else:
+        snow_depth_change = 0.0
+    
+    # Determine trend direction
+    if snow_depth_change > 1.0:
+        snow_depth_trend = "increasing"
+    elif snow_depth_change < -1.0:
+        snow_depth_trend = "decreasing"
+    else:
+        snow_depth_trend = "stable"
+    
+    # Calculate average temperature
+    temps = [d.temp_max_f for d in daily_data if d.temp_max_f is not None]
+    temps += [d.temp_min_f for d in daily_data if d.temp_min_f is not None]
+    temp_avg = sum(temps) / len(temps) if temps else None
+    
+    # Calculate total precipitation
+    precips = [d.precip_total_in for d in daily_data if d.precip_total_in is not None]
+    total_precip = sum(precips) if precips else 0.0
+    
+    # Get latest snow depth
+    latest_snow_depth = snow_depths[-1] if snow_depths else None
+    
+    # Determine snow conditions based on snow depth and trend
+    if latest_snow_depth is None:
+        snow_conditions = "unknown"
+    elif latest_snow_depth >= 40 and snow_depth_trend != "decreasing":
+        snow_conditions = "excellent"
+    elif latest_snow_depth >= 25 or (latest_snow_depth >= 15 and snow_depth_trend == "increasing"):
+        snow_conditions = "good"
+    elif latest_snow_depth >= 10:
+        snow_conditions = "fair"
+    else:
+        snow_conditions = "poor"
+    
+    return WeatherTrend(
+        snow_depth_change_in=round(snow_depth_change, 1),
+        snow_depth_trend=snow_depth_trend,
+        temp_avg_f=round(temp_avg, 1) if temp_avg is not None else None,
+        total_precip_in=round(total_precip, 2),
+        latest_snow_depth_in=round(latest_snow_depth, 1) if latest_snow_depth is not None else None,
+        snow_conditions=snow_conditions,
+    )
+
+
+def get_all_resort_weather(days: int = 7) -> List[ResortWeatherSummary]:
+    """Get weather summaries for all resorts"""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # Get all unique resort names from the mapping
+    cursor.execute("""
+        SELECT DISTINCT resort_name
+        FROM WEATHER_DATA.resort_station_mapping
+        ORDER BY resort_name
+    """)
+    
+    resort_names = [row['resort_name'] for row in cursor.fetchall()]
+    conn.close()
+    
+    # Get weather for each resort
+    weather_summaries = []
+    for resort_name in resort_names:
+        weather = get_resort_weather(resort_name, days)
+        if weather:
+            weather_summaries.append(weather)
+    
+    return weather_summaries
 

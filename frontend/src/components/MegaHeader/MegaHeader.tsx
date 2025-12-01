@@ -17,6 +17,7 @@ import classes from './MegaHeader.module.css';
 // Navigation configuration - add new pages here to automatically appear in the header
 const navigationItems = [
   { label: 'Home', href: '/' },
+  { label: 'Weather', href: '/weather' },
   { label: 'Recents', href: '/recents' },
   { label: 'Details', href: '/details' },
 ];

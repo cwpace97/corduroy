@@ -1,0 +1,202 @@
+{
+  "Copper": {
+    "Copper": {
+      "latitude": 39.499982,
+      "longitude": -106.155866,
+      "distance_miles": 0
+    },
+    "415:CO:SNTL": {
+      "name": "Copper Mountain",
+      "latitude": 39.48917,
+      "longitude": -106.17154,
+      "distance_miles": 1.12
+    },
+    "485:CO:SNTL": {
+      "name": "Fremont Pass",
+      "latitude": 39.38014,
+      "longitude": -106.19784,
+      "distance_miles": 8.58
+    },
+    "531:CO:SNTL": {
+      "name": "Hoosier Pass",
+      "latitude": 39.36092,
+      "longitude": -106.05999,
+      "distance_miles": 10.89
+    }
+  },
+  "Loveland": {
+    "Loveland": {
+      "latitude": 39.680456,
+      "longitude": -105.898216,
+      "distance_miles": 0
+    },
+    "602:CO:SNTL": {
+      "name": "Loveland Basin",
+      "latitude": 39.67428,
+      "longitude": -105.90264,
+      "distance_miles": 0.49
+    },
+    "505:CO:SNTL": {
+      "name": "Grizzly Peak",
+      "latitude": 39.64646,
+      "longitude": -105.8694,
+      "distance_miles": 2.8
+    },
+    "970:CO:SNTL": {
+      "name": "Jones Pass",
+      "latitude": 39.7645,
+      "longitude": -105.90655,
+      "distance_miles": 5.82
+    }
+  },
+  "Breckenridge": {
+    "Breckenridge": {
+      "latitude": 39.481096,
+      "longitude": -106.068073,
+      "distance_miles": 0
+    },
+    "415:CO:SNTL": {
+      "name": "Copper Mountain",
+      "latitude": 39.48917,
+      "longitude": -106.17154,
+      "distance_miles": 5.55
+    },
+    "531:CO:SNTL": {
+      "name": "Hoosier Pass",
+      "latitude": 39.36092,
+      "longitude": -106.05999,
+      "distance_miles": 8.31
+    },
+    "937:CO:SNTL": {
+      "name": "Michigan Creek",
+      "latitude": 39.43579,
+      "longitude": -105.91072,
+      "distance_miles": 8.96
+    }
+  },
+  "Winter Park": {
+    "Winter Park": {
+      "latitude": 39.887187,
+      "longitude": -105.764075,
+      "distance_miles": 0
+    },
+    "1186:CO:SNTL": {
+      "name": "Fool Creek",
+      "latitude": 39.86866,
+      "longitude": -105.86765,
+      "distance_miles": 5.64
+    },
+    "335:CO:SNTL": {
+      "name": "Berthoud Summit",
+      "latitude": 39.80364,
+      "longitude": -105.77786,
+      "distance_miles": 5.82
+    },
+    "564:CO:SNTL": {
+      "name": "Lake Eldora",
+      "latitude": 39.93659,
+      "longitude": -105.59031,
+      "distance_miles": 9.82
+    }
+  },
+  "Keystone": {
+    "Keystone": {
+      "latitude": 39.603876,
+      "longitude": -105.954666,
+      "distance_miles": 0
+    },
+    "505:CO:SNTL": {
+      "name": "Grizzly Peak",
+      "latitude": 39.64646,
+      "longitude": -105.8694,
+      "distance_miles": 5.41
+    },
+    "602:CO:SNTL": {
+      "name": "Loveland Basin",
+      "latitude": 39.67428,
+      "longitude": -105.90264,
+      "distance_miles": 5.6
+    },
+    "935:CO:SNTL": {
+      "name": "Jackwhacker Gulch",
+      "latitude": 39.57096,
+      "longitude": -105.80355,
+      "distance_miles": 8.36
+    }
+  },
+  "Arapahoe Basin": {
+    "Arapahoe Basin": {
+      "latitude": 39.642705,
+      "longitude": -105.87223,
+      "distance_miles": 0
+    },
+    "505:CO:SNTL": {
+      "name": "Grizzly Peak",
+      "latitude": 39.64646,
+      "longitude": -105.8694,
+      "distance_miles": 0.3
+    },
+    "602:CO:SNTL": {
+      "name": "Loveland Basin",
+      "latitude": 39.67428,
+      "longitude": -105.90264,
+      "distance_miles": 2.72
+    },
+    "935:CO:SNTL": {
+      "name": "Jackwhacker Gulch",
+      "latitude": 39.57096,
+      "longitude": -105.80355,
+      "distance_miles": 6.16
+    }
+  },
+  "Vail": {
+    "Vail": {
+      "latitude": 39.638704,
+      "longitude": -106.379194,
+      "distance_miles": 0
+    },
+    "842:CO:SNTL": {
+      "name": "Vail Mountain",
+      "latitude": 39.61765,
+      "longitude": -106.38019,
+      "distance_miles": 1.46
+    },
+    "1041:CO:SNTL": {
+      "name": "Beaver Ck Village",
+      "latitude": 39.59871,
+      "longitude": -106.51113,
+      "distance_miles": 7.55
+    },
+    "1040:CO:SNTL": {
+      "name": "Mccoy Park",
+      "latitude": 39.60231,
+      "longitude": -106.544,
+      "distance_miles": 9.12
+    }
+  },
+  "Crested Butte": {
+    "Crested Butte": {
+      "latitude": 38.899762,
+      "longitude": -106.954394,
+      "distance_miles": 0
+    },
+    "380:CO:SNTL": {
+      "name": "Butte",
+      "latitude": 38.89435,
+      "longitude": -106.95327,
+      "distance_miles": 0.38
+    },
+    "1326:CO:SNTL": {
+      "name": "Castle Peak",
+      "latitude": 39.00074,
+      "longitude": -106.83912,
+      "distance_miles": 9.33
+    },
+    "737:CO:SNTL": {
+      "name": "Schofield Pass",
+      "latitude": 39.01467,
+      "longitude": -107.04933,
+      "distance_miles": 9.44
+    }
+  }
+}

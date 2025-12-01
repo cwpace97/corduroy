@@ -89,6 +89,75 @@ class GlobalRecentlyOpened:
 
 
 @strawberry.type
+class WeatherDataPoint:
+    """Single weather observation data point"""
+    date: str
+    hour: Optional[int] = None
+    snow_depth_in: Optional[float] = None
+    snow_water_equivalent_in: Optional[float] = None
+    temp_observed_f: Optional[float] = None
+    temp_min_f: Optional[float] = None
+    temp_max_f: Optional[float] = None
+    precip_accum_in: Optional[float] = None
+    wind_speed_avg_mph: Optional[float] = None
+    wind_speed_max_mph: Optional[float] = None
+
+
+@strawberry.type
+class StationDailyData:
+    """Daily data for a single SNOTEL station"""
+    station_name: str
+    station_triplet: str
+    distance_miles: float
+    snow_depth_avg_in: Optional[float] = None
+
+
+@strawberry.type
+class DailyWeatherSummary:
+    """Daily aggregated weather data with weighted averages and per-station data"""
+    date: str
+    # Weighted average values (based on inverse distance)
+    snow_depth_avg_in: Optional[float] = None
+    snow_depth_max_in: Optional[float] = None
+    temp_min_f: Optional[float] = None
+    temp_max_f: Optional[float] = None
+    precip_total_in: Optional[float] = None
+    wind_speed_avg_mph: Optional[float] = None
+    wind_direction_avg_deg: Optional[int] = None
+    # Per-station snow depth data for charting
+    station_data: List[StationDailyData] = strawberry.field(default_factory=list)
+
+
+@strawberry.type
+class StationInfo:
+    """Information about a SNOTEL station"""
+    station_name: str
+    station_triplet: str
+    distance_miles: float
+
+
+@strawberry.type
+class WeatherTrend:
+    """Weather trend analysis for a resort"""
+    snow_depth_change_in: float  # Change over period (positive = gaining snow)
+    snow_depth_trend: str  # "increasing", "decreasing", "stable"
+    temp_avg_f: Optional[float] = None
+    total_precip_in: float
+    latest_snow_depth_in: Optional[float] = None
+    snow_conditions: str  # "excellent", "good", "fair", "poor"
+
+
+@strawberry.type
+class ResortWeatherSummary:
+    """Complete weather summary for a resort"""
+    resort_name: str
+    stations: List[StationInfo]  # All SNOTEL stations for this resort
+    trend: WeatherTrend
+    daily_data: List[DailyWeatherSummary]
+    hourly_data: List[WeatherDataPoint]
+
+
+@strawberry.type
 class Query:
     """GraphQL query root"""
     
@@ -109,4 +178,16 @@ class Query:
         """Get recently opened lifts and runs across all resorts"""
         from .resolvers import get_global_recently_opened
         return get_global_recently_opened()
+    
+    @strawberry.field
+    def resort_weather(self, resort_name: str, days: int = 7) -> Optional[ResortWeatherSummary]:
+        """Get weather summary for a specific resort"""
+        from .resolvers import get_resort_weather
+        return get_resort_weather(resort_name, days)
+    
+    @strawberry.field
+    def all_resort_weather(self, days: int = 7) -> List[ResortWeatherSummary]:
+        """Get weather summaries for all resorts"""
+        from .resolvers import get_all_resort_weather
+        return get_all_resort_weather(days)
 
