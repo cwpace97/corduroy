@@ -22,6 +22,7 @@ DURATION="DAILY"
 DAYS=7
 BEGIN_DATE=""
 END_DATE=""
+RESORT=""
 
 # Help function
 show_help() {
@@ -35,14 +36,21 @@ show_help() {
     echo "  --days N              Number of days to look back (default: 7 for daily, 2 for hourly)"
     echo "  --begin YYYY-MM-DD    Start date (overrides --days)"
     echo "  --end YYYY-MM-DD      End date (default: today)"
+    echo "  --resort NAME         Filter to a specific resort (case-insensitive)"
     echo "  -h, --help            Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0                           # Last 7 days, daily data"
+    echo "  $0                           # Last 7 days, daily data, all resorts"
     echo "  $0 --days 30                 # Last 30 days, daily data"
     echo "  $0 --hourly                  # Last 2 days, hourly data"
     echo "  $0 --hourly --days 1         # Last 1 day, hourly data"
+    echo "  $0 --resort Steamboat        # Only Steamboat resort"
+    echo "  $0 --resort Copper --hourly  # Copper resort, hourly data"
     echo "  $0 --begin 2025-11-01 --end 2025-11-30  # Specific date range"
+    echo ""
+    echo "Available resorts:"
+    echo "  Steamboat, Copper, Vail, Breckenridge, Keystone, Winter Park,"
+    echo "  Arapahoe Basin, Eldora"
     echo ""
     echo "Prerequisites:"
     echo "  - SSH tunnel must be running (use start_tunnel.sh)"
@@ -77,6 +85,10 @@ while [[ $# -gt 0 ]]; do
             END_DATE="$2"
             shift 2
             ;;
+        --resort)
+            RESORT="$2"
+            shift 2
+            ;;
         *)
             echo "Unknown option: $1"
             echo "Use --help for usage information"
@@ -100,11 +112,26 @@ if [ -z "$BEGIN_DATE" ]; then
     fi
 fi
 
+# The USDA API treats end date as exclusive (up to but not including that date)
+# So to include data through END_DATE, we need to add 1 day
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS: convert END_DATE to epoch, add 1 day (86400 seconds), convert back
+    END_EPOCH=$(date -j -f "%Y-%m-%d" "${END_DATE}" "+%s" 2>/dev/null)
+    API_END_DATE=$(date -j -r $((END_EPOCH + 86400)) "+%Y-%m-%d")
+else
+    API_END_DATE=$(date -d "$END_DATE + 1 day" +%Y-%m-%d)
+fi
+
 echo "=========================================="
 echo "🏔️  SNOTEL Weather Data Refresh"
 echo "=========================================="
 echo "Duration:   $DURATION"
-echo "Date Range: $BEGIN_DATE to $END_DATE"
+echo "Date Range: $BEGIN_DATE to $END_DATE (inclusive)"
+if [ -n "$RESORT" ]; then
+    echo "Resort:     $RESORT"
+else
+    echo "Resort:     All resorts"
+fi
 echo ""
 
 # Load environment variables from .env file
@@ -135,12 +162,21 @@ echo "Step 1: Collecting SNOTEL data from USDA API..."
 echo "------------------------------------------"
 
 # Run the Python collector script from the weather directory
+# Note: API_END_DATE is END_DATE + 1 day because the API treats end date as exclusive
 cd "$WEATHER_DIR"
-python3 snotel_data_collector.py \
-    --begin-date "$BEGIN_DATE" \
-    --end-date "$END_DATE" \
-    --duration "$DURATION" \
-    --output "$SQL_OUTPUT_FILE"
+
+# Build the Python command with optional resort filter
+PYTHON_CMD="python3 snotel_data_collector.py \
+    --begin-date \"$BEGIN_DATE\" \
+    --end-date \"$API_END_DATE\" \
+    --duration \"$DURATION\" \
+    --output \"$SQL_OUTPUT_FILE\""
+
+if [ -n "$RESORT" ]; then
+    PYTHON_CMD="$PYTHON_CMD --resort \"$RESORT\""
+fi
+
+eval $PYTHON_CMD
 
 if [ ! -f "$SQL_OUTPUT_FILE" ]; then
     echo "❌ Error: SQL file was not generated"

@@ -37,14 +37,16 @@ class SNOTELDataCollector:
     
     BASE_URL = "https://wcc.sc.egov.usda.gov/awdbRestApi/services/v1"
     
-    def __init__(self, mapping_file: str = "resort_snotel_mapping.json"):
+    def __init__(self, mapping_file: str = "resort_snotel_mapping.json", resort_filter: Optional[str] = None):
         """
         Initialize the collector with resort-SNOTEL mapping.
         
         Args:
             mapping_file: Path to the JSON file containing resort-SNOTEL mappings
+            resort_filter: Optional resort name to filter data for (case-insensitive)
         """
         self.mapping_file = mapping_file
+        self.resort_filter = resort_filter
         self.resort_mapping = self._load_mapping()
         self.unique_stations = self._extract_unique_stations()
         self.resort_station_lookup = self._build_resort_station_lookup()
@@ -62,6 +64,11 @@ class SNOTELDataCollector:
         stations = set()
         
         for resort_name, resort_data in self.resort_mapping.items():
+            # If resort filter is set, only include stations for matching resort
+            if self.resort_filter:
+                if resort_name.lower() != self.resort_filter.lower():
+                    continue
+            
             for key in resort_data.keys():
                 # SNOTEL triplets contain ":" (e.g., "415:CO:SNTL")
                 # Resort names don't have colons
@@ -75,6 +82,11 @@ class SNOTELDataCollector:
         lookup = {}
         
         for resort_name, resort_data in self.resort_mapping.items():
+            # If resort filter is set, only include mappings for matching resort
+            if self.resort_filter:
+                if resort_name.lower() != self.resort_filter.lower():
+                    continue
+            
             for key, station_info in resort_data.items():
                 if ":" in key:  # It's a SNOTEL station
                     if key not in lookup:
@@ -490,10 +502,19 @@ def main():
         default="resort_snotel_mapping.json",
         help="Path to resort-SNOTEL mapping JSON file"
     )
+    parser.add_argument(
+        "--resort",
+        type=str,
+        default=None,
+        help="Filter to a specific resort (case-insensitive). E.g., --resort Steamboat"
+    )
     
     args = parser.parse_args()
     
-    collector = SNOTELDataCollector(mapping_file=args.mapping_file)
+    collector = SNOTELDataCollector(mapping_file=args.mapping_file, resort_filter=args.resort)
+    
+    if args.resort:
+        print(f"Filtering for resort: {args.resort}")
     
     print(f"Unique SNOTEL stations: {collector.unique_stations}")
     print(f"Total stations: {len(collector.unique_stations)}")

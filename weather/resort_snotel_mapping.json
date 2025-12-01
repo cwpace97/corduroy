@@ -198,5 +198,80 @@
       "longitude": -107.04933,
       "distance_miles": 9.44
     }
+  },
+  "Steamboat": {
+    "Steamboat": {
+      "latitude": 40.452263,
+      "longitude": -106.770076,
+      "distance_miles": 0
+    },
+    "457:CO:SNTL": {
+      "name": "Dry Lake",
+      "latitude": 40.5337,
+      "longitude": -106.7814,
+      "distance_miles": 5.66
+    },
+    "709:CO:SNTL": {
+      "name": "Rabbit Ears",
+      "latitude": 40.36735,
+      "longitude": -106.74118,
+      "distance_miles": 6.06
+    },
+    "825:CO:SNTL": {
+      "name": "Tower",
+      "latitude": 40.5374,
+      "longitude": -106.67655,
+      "distance_miles": 7.67
+    }
+  },
+  "Purgatory": {
+    "Purgatory": {
+      "latitude": 37.626489,
+      "longitude": -107.819173,
+      "distance_miles": 0
+    },
+    "387:CO:SNTL": {
+      "name": "Cascade #2",
+      "latitude": 37.65751,
+      "longitude": -107.80287,
+      "distance_miles": 2.32
+    },
+    "780:CO:SNTL": {
+      "name": "Spud Mountain",
+      "latitude": 37.69883,
+      "longitude": -107.77841,
+      "distance_miles": 5.47
+    },
+    "739:CO:SNTL": {
+      "name": "Scotch Creek",
+      "latitude": 37.64562,
+      "longitude": -108.00833,
+      "distance_miles": 10.43
+    }
+  },
+  "Telluride": {
+    "Telluride": {
+      "latitude": 37.921412,
+      "longitude": -107.836462,
+      "distance_miles": 0
+    },
+    "1344:CO:SNTL": {
+      "name": "Alta Lakes",
+      "latitude": 37.88929,
+      "longitude": -107.84484,
+      "distance_miles": 2.27
+    },
+    "713:CO:SNTL": {
+      "name": "Red Mountain Pass",
+      "latitude": 37.89168,
+      "longitude": -107.71389,
+      "distance_miles": 6.99
+    },
+    "629:CO:SNTL": {
+      "name": "Mineral Creek",
+      "latitude": 37.84737,
+      "longitude": -107.72657,
+      "distance_miles": 7.88
+    }
   }
 }

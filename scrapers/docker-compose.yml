@@ -165,6 +165,57 @@ services:
     profiles:
       - steamboat
 
+  # Crested Butte Scraper using pre-built Seleniarm
+  crestedbutte-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-crestedbutte-scraper
+    environment:
+      - WEBSITE_URL=https://www.skicb.com/the-mountain/mountain-conditions/lift-and-terrain-status.aspx
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_crestedbutte.py"]
+    profiles:
+      - crestedbutte
+
+  # Purgatory Scraper using pre-built Seleniarm
+  purgatory-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-purgatory-scraper
+    environment:
+      - WEBSITE_URL=https://www.purgatory.ski/mountain/weather-conditions-webcams/
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_purgatory.py"]
+    profiles:
+      - purgatory
+
+  # Telluride Scraper using pre-built Seleniarm
+  telluride-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-telluride-scraper
+    environment:
+      - WEBSITE_URL=https://tellurideskiresort.com/snow-report/
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_telluride.py"]
+    profiles:
+      - telluride
+
   # ARM64 Selenium Hub
   selenium-hub:
     image: seleniarm/hub:latest
@@ -200,4 +251,7 @@ services:
 # docker-compose --profile breckenridge run breckenridge-scraper # Runs breckenridge scraper with Selenium Grid
 # docker-compose --profile vail run vail-scraper           # Runs vail scraper with Selenium Grid
 # docker-compose --profile steamboat run steamboat-scraper # Runs steamboat scraper with Selenium Grid
+# docker-compose --profile crestedbutte run crestedbutte-scraper # Runs crested butte scraper with Selenium Grid
+# docker-compose --profile purgatory run purgatory-scraper       # Runs purgatory scraper with Selenium Grid
+# docker-compose --profile telluride run telluride-scraper       # Runs telluride scraper with Selenium Grid
 

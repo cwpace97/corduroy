@@ -43,23 +43,32 @@ export default function HomePage() {
   const { loading, error, data } = useQuery<GetResortsData>(GET_RESORTS);
   const [sortBy, setSortBy] = useState<SortOption>('conditions');
 
+  // Normalize a resort name by removing spaces and converting to lowercase
+  // This allows matching "arapahoebasin" with "Arapahoe Basin"
+  const normalizeResortName = (name: string): string => {
+    return name.toLowerCase().replace(/[\s-]/g, '');
+  };
+
   // Create a map of resort name to weather data for quick lookup
   const weatherByResort = useMemo(() => {
     const map = new Map<string, ResortWeatherSummary>();
     if (data?.allResortWeather) {
       for (const weather of data.allResortWeather) {
         const resortName = weather.resortName;
+        // Store with multiple key variations for flexible matching
         map.set(resortName.toLowerCase(), weather);
-        if (resortName === 'Arapahoe Basin') {
-          map.set('arapahoe basin', weather);
-        }
+        map.set(normalizeResortName(resortName), weather);
       }
     }
     return map;
   }, [data?.allResortWeather]);
 
   const getWeatherData = (location: string): ResortWeatherSummary | null => {
-    return weatherByResort.get(location) || weatherByResort.get(location.toLowerCase()) || null;
+    // Try exact match, lowercase, then normalized (no spaces)
+    return weatherByResort.get(location) 
+      || weatherByResort.get(location.toLowerCase()) 
+      || weatherByResort.get(normalizeResortName(location)) 
+      || null;
   };
 
   // Sort resorts based on selected option

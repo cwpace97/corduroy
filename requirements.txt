@@ -1,6 +1,7 @@
 # Core web scraping dependencies
 selenium==4.28.0
 requests==2.32.3
+bs4
 
 # Date/time handling
 python-dateutil==2.9.0.post0
