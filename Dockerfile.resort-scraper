@@ -1,0 +1,39 @@
+FROM python:3.11-slim
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV DISPLAY=:99
+
+# Install system dependencies and Chromium (works on both ARM and AMD64)
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    unzip \
+    curl \
+    ca-certificates \
+    fonts-liberation \
+    chromium \
+    chromium-driver \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Chrome binary location for Selenium
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements.lock and install Python dependencies
+COPY requirements.lock .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.lock
+
+# Copy scrapers directory
+COPY scrapers/ ./scrapers/
+
+# Make run_all_scrapers.py executable
+RUN chmod +x scrapers/run_all_scrapers.py
+
+# Set entrypoint
+ENTRYPOINT ["python3", "scrapers/run_all_scrapers.py"]

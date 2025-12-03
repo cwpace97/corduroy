@@ -18,6 +18,9 @@ class BaseScraper(ABC):
         self.selenium_port = os.environ.get("SELENIUM_PORT", "4444")
         self.selenium_url = f"http://{self.selenium_host}:{self.selenium_port}/wd/hub"
         
+        # Use local Chrome driver if SELENIUM_HOST is not set or set to "local"
+        self.use_local_driver = os.environ.get("SELENIUM_HOST", "").lower() in ("", "local", "localhost")
+        
         self.driver = None
     
     def get_chrome_options(self) -> ChromeOptions:
@@ -40,19 +43,45 @@ class BaseScraper(ABC):
         return chrome_options
     
     def connect_to_selenium(self) -> bool:
-        """Initialize connection to Selenium Grid"""
+        """Initialize connection to Selenium Grid or local Chrome driver"""
         try:
-            print(f"Connecting to Selenium Grid at {self.selenium_url}")
-            
-            chrome_options = self.get_chrome_options()
-            self.driver = webdriver.Remote(
-                command_executor=self.selenium_url,
-                options=chrome_options
-            )
-            print("Connected to Selenium Grid successfully")
+            if self.use_local_driver:
+                print("Using local Chrome/Chromium driver")
+                from selenium.webdriver.chrome.service import Service as ChromeService
+                
+                chrome_options = self.get_chrome_options()
+                
+                # Check for Chromium binary path (for Docker/ECS)
+                chrome_bin = os.environ.get("CHROME_BIN")
+                if chrome_bin:
+                    chrome_options.binary_location = chrome_bin
+                    print(f"Using Chrome binary: {chrome_bin}")
+                
+                # Check for ChromeDriver path (for Docker/ECS)
+                chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
+                if chromedriver_path:
+                    service = ChromeService(executable_path=chromedriver_path)
+                    print(f"Using ChromeDriver: {chromedriver_path}")
+                    self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                else:
+                    # Use chromedriver from PATH
+                    self.driver = webdriver.Chrome(options=chrome_options)
+                
+                print("Local Chrome driver initialized successfully")
+            else:
+                print(f"Connecting to Selenium Grid at {self.selenium_url}")
+                
+                chrome_options = self.get_chrome_options()
+                self.driver = webdriver.Remote(
+                    command_executor=self.selenium_url,
+                    options=chrome_options
+                )
+                print("Connected to Selenium Grid successfully")
             return True
         except Exception as e:
-            print(f"Failed to connect to Selenium Grid: {e}")
+            print(f"Failed to connect to Selenium: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def navigate_to_website(self) -> bool:

@@ -31,3 +31,11 @@ backend/__pycache__/*
 .cursorrules
 
 /ref
+
+# Terraform
+infrastructure/.terraform/
+infrastructure/.terraform.lock.hcl
+infrastructure/*.tfvars
+infrastructure/*.tfstate
+infrastructure/*.tfstate.backup
+infrastructure/.terraform.tfstate.lock.info

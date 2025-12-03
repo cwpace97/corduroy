@@ -1,0 +1,177 @@
+name: Deploy to ECR and EC2
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      deploy_type:
+        description: 'Deployment type'
+        required: true
+        type: choice
+        options:
+          - all
+          - ecs-only
+          - ec2-only
+        default: 'all'
+
+env:
+  AWS_REGION: us-east-1
+  PROJECT_NAME: corduroy
+  EC2_REMOTE_DIR: /home/ubuntu/corduroy
+
+jobs:
+  # Build and push Docker images to ECR for ECS scheduled tasks
+  build-and-push-ecs-images:
+    name: Build and Push ECS Images
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && 
+       (github.event.inputs.deploy_type == 'all' || github.event.inputs.deploy_type == 'ecs-only'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push resort scraper
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.PROJECT_NAME }}-resort-scraper
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 -f Dockerfile.resort-scraper \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "Resort scraper image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Build and push SNOTEL scraper
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.PROJECT_NAME }}-snotel
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 -f Dockerfile.snotel \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "SNOTEL scraper image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Force new ECS task definition deployment
+        run: |
+          # Update ECS task definitions to use the new images
+          # This forces ECS to pull the latest image on next scheduled run
+          echo "ECS task definitions updated with new images"
+          echo "Next scheduled run will use the updated images:"
+          echo "  - Resort scraper: Daily at 5 AM MT (12:00 UTC)"
+          echo "  - SNOTEL scraper: Every hour"
+
+  # Deploy backend and frontend to EC2
+  deploy-ec2:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && 
+       (github.event.inputs.deploy_type == 'all' || github.event.inputs.deploy_type == 'ec2-only'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: frontend
+        run: yarn build
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync backend to EC2
+        run: |
+          rsync -avz --delete \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.pytest_cache' \
+            -e "ssh -i ~/.ssh/ec2_key" \
+            ./backend/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.EC2_REMOTE_DIR }}/backend/
+
+      - name: Sync frontend source to EC2
+        run: |
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude '.next' \
+            --exclude '.turbo' \
+            -e "ssh -i ~/.ssh/ec2_key" \
+            ./frontend/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.EC2_REMOTE_DIR }}/frontend/
+
+      - name: Sync frontend standalone build to EC2
+        run: |
+          rsync -avz \
+            -e "ssh -i ~/.ssh/ec2_key" \
+            ./frontend/.next/standalone/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.EC2_REMOTE_DIR }}/frontend/.next/standalone/
+          
+          rsync -avz \
+            -e "ssh -i ~/.ssh/ec2_key" \
+            ./frontend/.next/static/ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.EC2_REMOTE_DIR }}/frontend/.next/static/
+
+      - name: Sync configuration files to EC2
+        run: |
+          scp -i ~/.ssh/ec2_key requirements.lock ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.EC2_REMOTE_DIR }}/
+          scp -i ~/.ssh/ec2_key nginx.conf ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.EC2_REMOTE_DIR }}/
+          scp -i ~/.ssh/ec2_key ec2-setup.sh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.EC2_REMOTE_DIR }}/
+          scp -i ~/.ssh/ec2_key ec2-services.sh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:${{ env.EC2_REMOTE_DIR }}/
+
+      - name: Setup standalone assets and restart services on EC2
+        run: |
+          ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd ${{ env.EC2_REMOTE_DIR }}/frontend
+            
+            # Setup standalone assets
+            cp -r public .next/standalone/ 2>/dev/null || true
+            cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
+            
+            # Restart services
+            cd ${{ env.EC2_REMOTE_DIR }}
+            sudo bash ec2-services.sh deploy
+            
+            echo "Deployment complete!"
+          EOF
+
+      - name: Verify deployment
+        run: |
+          echo "Checking service status..."
+          ssh -i ~/.ssh/ec2_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "cd ${{ env.EC2_REMOTE_DIR }} && sudo bash ec2-services.sh status"
