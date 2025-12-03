@@ -648,86 +648,95 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
           )}
         </Box>
 
-        {/* Stats Boxes - Object B (4 blocks with temp split vertically) */}
+        {/* Stats Boxes - Object B (4 columns with temp split into 2 rows) */}
         <Box style={{ flex: '1 1 50%' }}>
-          <Group gap="xs" style={{ height: '100%' }} wrap="nowrap">
+          <SimpleGrid cols={4} spacing="xs" style={{ height: '100%' }}>
             {/* Base Depth */}
-            <Box style={{ flex: 1 }}>
-              <StatBlock
-                icon={<IconSnowflake size={14} />}
-                label="Base Depth"
-                value={trend.latestSnowDepthIn !== null ? `${trend.latestSnowDepthIn.toFixed(0)}"` : 'N/A'}
-                color="cyan"
-              />
+            <StatBlock
+              icon={<IconSnowflake size={14} />}
+              label="Base Depth"
+              value={trend.latestSnowDepthIn !== null ? `${trend.latestSnowDepthIn.toFixed(0)}"` : 'N/A'}
+              color="cyan"
+            />
+            {/* Temp High/Low stacked vertically in one column */}
+            <Box
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--mantine-spacing-xs)',
+                height: '100%',
+              }}
+            >
+              <Box
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <Group gap={4} align="center" mb={2}>
+                  <ThemeIcon size={18} variant="light" color="red" radius="md">
+                    <IconTemperature size={10} />
+                  </ThemeIcon>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                    High
+                  </Text>
+                </Group>
+                <Box style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text size="xl" fw={700} c="white" ta="center">
+                    {forecastChartData.length > 0 && forecastChartData[0].forecastMax !== null 
+                      ? `${forecastChartData[0].forecastMax.toFixed(0)}°` 
+                      : maxTemp !== null ? `${maxTemp.toFixed(0)}°` : 'N/A'}
+                  </Text>
+                </Box>
+              </Box>
+              <Box
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <Group gap={4} align="center" mb={2}>
+                  <ThemeIcon size={18} variant="light" color="blue" radius="md">
+                    <IconTemperature size={10} />
+                  </ThemeIcon>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                    Low
+                  </Text>
+                </Group>
+                <Box style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text size="xl" fw={700} c="white" ta="center">
+                    {forecastChartData.length > 0 && forecastChartData[0].forecastMin !== null 
+                      ? `${forecastChartData[0].forecastMin.toFixed(0)}°` 
+                      : minTemp !== null ? `${minTemp.toFixed(0)}°` : 'N/A'}
+                  </Text>
+                </Box>
+              </Box>
             </Box>
-            {/* Temp High/Low stacked vertically */}
-            <Stack gap="xs" style={{ flex: 1 }}>
-              <Box
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                  flex: 1,
-                }}
-              >
-                <Group gap="xs" align="center" mb={4}>
-                  <ThemeIcon size={20} variant="light" color="red" radius="md">
-                    <IconTemperature size={12} />
-                  </ThemeIcon>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
-                    Today's High
-                  </Text>
-                </Group>
-                <Text size="lg" fw={700} c="white" ta="center">
-                  {forecastChartData.length > 0 && forecastChartData[0].forecastMax !== null 
-                    ? `${forecastChartData[0].forecastMax.toFixed(0)}°` 
-                    : maxTemp !== null ? `${maxTemp.toFixed(0)}°` : 'N/A'}
-                </Text>
-              </Box>
-              <Box
-                style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                  flex: 1,
-                }}
-              >
-                <Group gap="xs" align="center" mb={4}>
-                  <ThemeIcon size={20} variant="light" color="blue" radius="md">
-                    <IconTemperature size={12} />
-                  </ThemeIcon>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
-                    Today's Low
-                  </Text>
-                </Group>
-                <Text size="lg" fw={700} c="white" ta="center">
-                  {forecastChartData.length > 0 && forecastChartData[0].forecastMin !== null 
-                    ? `${forecastChartData[0].forecastMin.toFixed(0)}°` 
-                    : minTemp !== null ? `${minTemp.toFixed(0)}°` : 'N/A'}
-                </Text>
-              </Box>
-            </Stack>
             {/* 7 Day Snowfall */}
-            <Box style={{ flex: 1 }}>
-              <StatBlock
-                icon={<IconDroplet size={14} />}
-                label="7 Day Snowfall"
-                value={totalHistoricalSnowfall > 0 ? `${totalHistoricalSnowfall.toFixed(1)}"` : '0"'}
-                color="blue"
-              />
-            </Box>
+            <StatBlock
+              icon={<IconDroplet size={14} />}
+              label="7 Day Snowfall"
+              value={totalHistoricalSnowfall > 0 ? `${totalHistoricalSnowfall.toFixed(1)}"` : '0"'}
+              color="blue"
+            />
             {/* 7 Day Forecast */}
-            <Box style={{ flex: 1 }}>
-              <StatBlock
-                icon={<IconSnowflake size={14} />}
-                label="7 Day Forecast"
-                value={totalForecastSnow > 0 ? `${totalForecastSnow.toFixed(1)}"` : '0"'}
-                color="teal"
-              />
-            </Box>
-          </Group>
+            <StatBlock
+              icon={<IconSnowflake size={14} />}
+              label="7 Day Forecast"
+              value={totalForecastSnow > 0 ? `${totalForecastSnow.toFixed(1)}"` : '0"'}
+              color="teal"
+            />
+          </SimpleGrid>
         </Box>
       </Group>
 

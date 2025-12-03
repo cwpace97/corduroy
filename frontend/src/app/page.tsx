@@ -120,34 +120,52 @@ export default function HomePage() {
     
     // Helper to calculate 7-day forecast snow for a resort (inline to capture closure)
     const calcForecastSnow = (location: string): number => {
+      const normalizedLocation = location.toLowerCase().replace(/[\s-]/g, '');
       const forecast = forecastByResort.get(location) 
         || forecastByResort.get(location.toLowerCase()) 
-        || forecastByResort.get(normalizeResortName(location));
-      if (!forecast?.forecasts) return 0;
+        || forecastByResort.get(normalizedLocation);
+      
+      if (!forecast?.forecasts || forecast.forecasts.length === 0) {
+        return 0;
+      }
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const sevenDaysFromNow = new Date(today);
       sevenDaysFromNow.setDate(today.getDate() + 7);
       
-      return forecast.forecasts
+      const total = forecast.forecasts
         .filter(f => {
-          const forecastDate = new Date(f.validTime.split('T')[0] + 'T00:00:00');
+          const dateStr = f.validTime.split('T')[0].split(' ')[0];
+          const forecastDate = new Date(dateStr + 'T00:00:00');
           return forecastDate >= today && forecastDate < sevenDaysFromNow;
         })
         .reduce((sum, f) => sum + (f.snowAmountIn ?? 0), 0);
+      
+      return total;
     };
 
     // Helper to calculate 7-day historical snowfall for a resort (inline to capture closure)
     const calcHistoricalSnow = (location: string): number => {
+      const normalizedLocation = location.toLowerCase().replace(/[\s-]/g, '');
       const weather = weatherByResort.get(location) 
         || weatherByResort.get(location.toLowerCase()) 
-        || weatherByResort.get(normalizeResortName(location));
+        || weatherByResort.get(normalizedLocation);
+      
       if (!weather?.historicalWeather) return 0;
       
       return weather.historicalWeather
         .filter(h => h.snowfallTotalIn !== null && h.snowfallTotalIn > 0)
         .reduce((sum, h) => sum + (h.snowfallTotalIn ?? 0), 0);
+    };
+
+    // Helper to get base depth
+    const getBaseDepth = (location: string): number => {
+      const normalizedLocation = location.toLowerCase().replace(/[\s-]/g, '');
+      const weather = weatherByResort.get(location) 
+        || weatherByResort.get(location.toLowerCase()) 
+        || weatherByResort.get(normalizedLocation);
+      return weather?.trend.latestSnowDepthIn ?? 0;
     };
     
     switch (sortBy) {
@@ -155,32 +173,33 @@ export default function HomePage() {
         return resorts.sort((a, b) => a.location.localeCompare(b.location));
       case 'baseDepth':
         return resorts.sort((a, b) => {
-          const aWeather = weatherByResort.get(a.location) 
-            || weatherByResort.get(a.location.toLowerCase()) 
-            || weatherByResort.get(normalizeResortName(a.location));
-          const bWeather = weatherByResort.get(b.location) 
-            || weatherByResort.get(b.location.toLowerCase()) 
-            || weatherByResort.get(normalizeResortName(b.location));
-          const aDepth = aWeather?.trend.latestSnowDepthIn ?? 0;
-          const bDepth = bWeather?.trend.latestSnowDepthIn ?? 0;
-          return bDepth - aDepth;
+          const diff = getBaseDepth(b.location) - getBaseDepth(a.location);
+          // Use name as tiebreaker for stable sort
+          return diff !== 0 ? diff : a.location.localeCompare(b.location);
         });
       case 'recentSnow':
         return resorts.sort((a, b) => {
-          const aSnow = calcHistoricalSnow(a.location);
-          const bSnow = calcHistoricalSnow(b.location);
-          return bSnow - aSnow;
+          const diff = calcHistoricalSnow(b.location) - calcHistoricalSnow(a.location);
+          return diff !== 0 ? diff : a.location.localeCompare(b.location);
         });
       case 'forecastSnow':
         return resorts.sort((a, b) => {
           const aSnow = calcForecastSnow(a.location);
           const bSnow = calcForecastSnow(b.location);
-          return bSnow - aSnow;
+          const diff = bSnow - aSnow;
+          // Use name as tiebreaker for stable sort
+          return diff !== 0 ? diff : a.location.localeCompare(b.location);
         });
       case 'lifts':
-        return resorts.sort((a, b) => b.openLifts - a.openLifts);
+        return resorts.sort((a, b) => {
+          const diff = b.openLifts - a.openLifts;
+          return diff !== 0 ? diff : a.location.localeCompare(b.location);
+        });
       case 'runs':
-        return resorts.sort((a, b) => b.openRuns - a.openRuns);
+        return resorts.sort((a, b) => {
+          const diff = b.openRuns - a.openRuns;
+          return diff !== 0 ? diff : a.location.localeCompare(b.location);
+        });
       default:
         return resorts;
     }

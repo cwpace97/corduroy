@@ -1,6 +1,7 @@
 'use client';
 
 import { Stack, Text, Group, ThemeIcon, Tooltip, Box, Badge } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   IconSnowflake,
   IconTrendingUp,
@@ -152,6 +153,9 @@ const getDateKey = (dateStr: string): string => {
 };
 
 export function WeatherSummary({ trend, dailyData, historicalWeather, forecasts, compact = false }: WeatherSummaryProps) {
+  // Detect mobile to disable tooltips
+  const isMobile = useMediaQuery('(max-width: 768px)');
+
   if (!trend) {
     return (
       <Stack align="center" gap={4}>
@@ -182,17 +186,19 @@ export function WeatherSummary({ trend, dailyData, historicalWeather, forecasts,
   const sevenDaysFromNow = new Date(today);
   sevenDaysFromNow.setDate(today.getDate() + 7);
 
-  // Get today's forecast high/low
+  // Get today's date key in YYYY-MM-DD format
   const todayDateKey = today.toISOString().split('T')[0];
   const forecastByDate = new Map<string, { high: number | null; low: number | null; snow: number | null }>();
   
-  if (forecasts) {
+  if (forecasts && forecasts.length > 0) {
     for (const f of forecasts) {
+      // Handle various date formats
       const dateKey = getDateKey(f.validTime);
       const existing = forecastByDate.get(dateKey);
       if (!existing) {
         forecastByDate.set(dateKey, { high: f.tempHighF, low: f.tempLowF, snow: f.snowAmountIn });
       } else {
+        // Merge: prefer non-null values, accumulate snow
         if (existing.high === null && f.tempHighF !== null) existing.high = f.tempHighF;
         if (existing.low === null && f.tempLowF !== null) existing.low = f.tempLowF;
         if (existing.snow === null && f.snowAmountIn !== null) existing.snow = f.snowAmountIn;
@@ -201,9 +207,14 @@ export function WeatherSummary({ trend, dailyData, historicalWeather, forecasts,
     }
   }
 
+  // Get today's forecast - use forecast values, only fall back to historical if no forecast
   const todayForecast = forecastByDate.get(todayDateKey);
-  const todayHigh = todayForecast?.high ?? latestDaily?.tempMaxF ?? null;
-  const todayLow = todayForecast?.low ?? latestDaily?.tempMinF ?? null;
+  const todayHigh = todayForecast?.high !== null && todayForecast?.high !== undefined 
+    ? todayForecast.high 
+    : (latestDaily?.tempMaxF ?? null);
+  const todayLow = todayForecast?.low !== null && todayForecast?.low !== undefined 
+    ? todayForecast.low 
+    : (latestDaily?.tempMinF ?? null);
 
   // Calculate 7-day forecast snow
   const sevenDayForecastSnow = Array.from(forecastByDate.entries())
@@ -231,6 +242,7 @@ export function WeatherSummary({ trend, dailyData, historicalWeather, forecasts,
         }
         withArrow
         position="bottom"
+        disabled={isMobile}
       >
         <Stack align="flex-start" gap={6} style={{ cursor: 'pointer', minWidth: 200 }}>
           {/* Row 1: Current temp */}
