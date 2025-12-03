@@ -39,3 +39,4 @@ resource "aws_security_group_rule" "ec2_from_ecs_postgres" {
   description              = "Allow EC2 PostgreSQL to accept connections from ECS tasks"
 }
 
+

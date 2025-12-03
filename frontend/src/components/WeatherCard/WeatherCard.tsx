@@ -44,6 +44,7 @@ export interface DailyWeatherData {
   tempMinF: number | null;
   tempMaxF: number | null;
   precipTotalIn: number | null;
+  snowfallTotalIn: number | null;
   windSpeedAvgMph: number | null;
   windDirectionAvgDeg: number | null;
   stationData: StationDailyData[];
@@ -56,6 +57,23 @@ export interface HourlyWeatherData {
   tempObservedF: number | null;
   precipAccumIn: number | null;
   windSpeedAvgMph: number | null;
+}
+
+export interface HourlyTemperatureData {
+  date: string;
+  hour: number;
+  temperatureF: number | null;
+  precipitationIn: number | null;
+  snowfallIn: number | null;
+}
+
+export interface HistoricalWeatherData {
+  date: string;
+  tempMinF: number | null;
+  tempMaxF: number | null;
+  tempAvgF: number | null;
+  precipTotalIn: number | null;
+  snowfallTotalIn: number | null;
 }
 
 export interface WeatherTrend {
@@ -93,7 +111,7 @@ export interface ResortWeatherData {
   stations: StationInfo[];
   trend: WeatherTrend;
   dailyData: DailyWeatherData[];
-  hourlyData: HourlyWeatherData[];
+  historicalWeather: HistoricalWeatherData[];
 }
 
 export interface WeatherCardProps {
@@ -174,9 +192,11 @@ const getTrendColor = (trend: string): string => {
 };
 
 const formatDate = (dateStr: string): string => {
-  // Handle both ISO format and space-separated format
-  const normalizedStr = dateStr.replace(' ', 'T');
-  const date = new Date(normalizedStr);
+  // Extract just the date part (YYYY-MM-DD) and parse it correctly
+  // Avoid timezone issues by parsing components directly
+  const datePart = dateStr.split('T')[0].split(' ')[0];
+  const [year, month, day] = datePart.split('-').map(Number);
+  const date = new Date(year, month - 1, day); // month is 0-indexed
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
@@ -234,7 +254,7 @@ function StatBlock({ icon, label, value, trend, color = 'blue' }: StatBlockProps
 }
 
 export function WeatherCard({ weather, forecast }: WeatherCardProps) {
-  const { trend, dailyData, stations } = weather;
+  const { trend, dailyData, stations, historicalWeather } = weather;
   const trendColor = getTrendColor(trend.snowDepthTrend);
 
   // Get unique station triplets from the data
@@ -276,7 +296,6 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
   };
 
   // Process forecast data - group by date and merge high/low temps
-  // NWS provides separate day/night periods, so we need to merge them
   const forecastByDate = new Map<string, ForecastDataPoint>();
   if (forecast?.forecasts) {
     // First pass: collect all forecasts by date, merging high/low from different periods
@@ -317,14 +336,10 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
         if (existing.low === null && f.tempLowF !== null) {
           existing.low = f.tempLowF;
         }
-        if (f.source === 'NWS' && f.snowAmountIn !== null) {
-          existing.snow = f.snowAmountIn;
-        } else if (existing.snow === null && f.snowAmountIn !== null) {
+        if (existing.snow === null && f.snowAmountIn !== null) {
           existing.snow = f.snowAmountIn;
         }
-        if (f.source === 'NWS' && f.conditionsText) {
-          existing.conditions = f.conditionsText;
-        } else if (!existing.conditions && f.conditionsText) {
+        if (!existing.conditions && f.conditionsText) {
           existing.conditions = f.conditionsText;
         }
         if (existing.precip === null && f.precipAmountIn !== null) {
@@ -356,35 +371,31 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
     });
   }
 
-  // Calculate historical snowfall from day-over-day snow depth changes
+  // Build historical snowfall map from pre-aggregated daily data
   const historicalSnowfall: Map<string, number> = new Map();
   const sortedDailyData = [...dailyData].sort((a, b) => a.date.localeCompare(b.date));
-  for (let i = 1; i < sortedDailyData.length; i++) {
-    const prevDepth = sortedDailyData[i - 1].snowDepthAvgIn;
-    const currDepth = sortedDailyData[i].snowDepthAvgIn;
-    if (prevDepth !== null && currDepth !== null) {
-      const change = currDepth - prevDepth;
-      // Only count positive changes as snowfall (negative is melting/settling)
-      if (change > 0) {
-        historicalSnowfall.set(getDateKey(sortedDailyData[i].date), change);
+  
+  // Use pre-aggregated historical weather data from the view
+  if (historicalWeather && historicalWeather.length > 0) {
+    for (const h of historicalWeather) {
+      if (h.snowfallTotalIn !== null && h.snowfallTotalIn > 0) {
+        const dateKey = getDateKey(h.date);
+        historicalSnowfall.set(dateKey, h.snowfallTotalIn);
       }
     }
   }
 
-  // Prepare HISTORICAL chart data
-  const historicalChartData = dailyData
-    .filter(d => d.tempMinF !== null || d.tempMaxF !== null)
-    .map(d => {
-      const dateKey = getDateKey(d.date);
-      const snowfall = historicalSnowfall.get(dateKey) ?? 0;
-      return {
-        date: formatDate(d.date),
-        fullDate: dateKey,
-        min: d.tempMinF,
-        max: d.tempMaxF,
-        snowfall: snowfall > 0 ? snowfall : null,
-      };
-    });
+  // Prepare HISTORICAL daily chart data directly from pre-aggregated data
+  const historicalDailyData = (historicalWeather ?? [])
+    .map(h => ({
+      date: formatDate(h.date),
+      fullDate: getDateKey(h.date),
+      high: h.tempMaxF,
+      low: h.tempMinF,
+      snowfall: h.snowfallTotalIn !== null && h.snowfallTotalIn > 0 ? h.snowfallTotalIn : null,
+    }))
+    .sort((a, b) => a.fullDate.localeCompare(b.fullDate));
+
 
   // Prepare FORECAST chart data
   const forecastChartData: Array<{
@@ -416,12 +427,14 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
 
   // Fixed Y-axis domains for consistency across all charts
   const tempDomain: [number, number] = [-10, 40];  // Temperature: -10°F to 40°F
-  const snowDomain: [number, number] = [0, 12];    // Snowfall: 0" to 12"
+  const snowDomain: [number, number] = [0, 12];    // Daily snowfall: 0" to 12"
 
-  // Calculate min/max temps for stats display
-  const historicalTemps = dailyData.flatMap(d => [d.tempMinF, d.tempMaxF]).filter((t): t is number => t !== null);
-  const minTemp = historicalTemps.length > 0 ? Math.min(...historicalTemps) : null;
-  const maxTemp = historicalTemps.length > 0 ? Math.max(...historicalTemps) : null;
+  // Calculate min/max temps for stats display (from historical weather data if available, otherwise daily)
+  const historicalTemps = (historicalWeather ?? []).flatMap(h => [h.tempMinF, h.tempMaxF]).filter((t): t is number => t !== null);
+  const fallbackTemps = dailyData.flatMap(d => [d.tempMinF, d.tempMaxF]).filter((t): t is number => t !== null);
+  const allTemps = historicalTemps.length > 0 ? historicalTemps : fallbackTemps;
+  const minTemp = allTemps.length > 0 ? Math.min(...allTemps) : null;
+  const maxTemp = allTemps.length > 0 ? Math.max(...allTemps) : null;
 
   // Calculate 7-day historical snowfall (from last 7 days of dailyData)
   const last7Days = sortedDailyData.slice(-7);
@@ -458,10 +471,10 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
   // Get closest station for display
   const closestStation = stations[0];
 
-  // Series for historical chart - temperature on left axis, snow on right axis
-  const historicalSeries = [
-    { name: 'max', color: 'red.5', type: 'line' as const, yAxisId: 'left' },
-    { name: 'min', color: 'blue.5', type: 'line' as const, yAxisId: 'left' },
+  // Series for historical daily chart - high/low temp lines on left axis, snowfall bar on right axis
+  const historicalDailySeries = [
+    { name: 'high', color: 'red.5', type: 'line' as const, yAxisId: 'left' },
+    { name: 'low', color: 'blue.5', type: 'line' as const, yAxisId: 'left' },
     { name: 'snowfall', color: 'cyan.4', type: 'bar' as const, yAxisId: 'right' },
   ];
 
@@ -635,46 +648,101 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
           )}
         </Box>
 
-        {/* Stats Boxes - Object B (4 blocks) */}
+        {/* Stats Boxes - Object B (4 columns with temp split into 2 rows) */}
         <Box style={{ flex: '1 1 50%' }}>
           <SimpleGrid cols={4} spacing="xs" style={{ height: '100%' }}>
+            {/* Base Depth */}
             <StatBlock
               icon={<IconSnowflake size={14} />}
-              label="Depth"
+              label="Base Depth"
               value={trend.latestSnowDepthIn !== null ? `${trend.latestSnowDepthIn.toFixed(0)}"` : 'N/A'}
               color="cyan"
             />
-            <StatBlock
-              icon={<IconTemperature size={14} />}
-              label="Temp"
-              value={trend.tempAvgF !== null ? `${trend.tempAvgF.toFixed(0)}°` : 'N/A'}
-              trend={
-                minTemp !== null && maxTemp !== null ? (
-                  <Text size="xs" c="dimmed">{minTemp.toFixed(0)}° / {maxTemp.toFixed(0)}°</Text>
-                ) : undefined
-              }
-              color="orange"
-            />
+            {/* Temp High/Low stacked vertically in one column */}
+            <Box
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--mantine-spacing-xs)',
+                height: '100%',
+              }}
+            >
+              <Box
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <Group gap={4} align="center" mb={2}>
+                  <ThemeIcon size={18} variant="light" color="red" radius="md">
+                    <IconTemperature size={10} />
+                  </ThemeIcon>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                    High
+                  </Text>
+                </Group>
+                <Box style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text size="xl" fw={700} c="white" ta="center">
+                    {forecastChartData.length > 0 && forecastChartData[0].forecastMax !== null 
+                      ? `${forecastChartData[0].forecastMax.toFixed(0)}°` 
+                      : maxTemp !== null ? `${maxTemp.toFixed(0)}°` : 'N/A'}
+                  </Text>
+                </Box>
+              </Box>
+              <Box
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                <Group gap={4} align="center" mb={2}>
+                  <ThemeIcon size={18} variant="light" color="blue" radius="md">
+                    <IconTemperature size={10} />
+                  </ThemeIcon>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                    Low
+                  </Text>
+                </Group>
+                <Box style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text size="xl" fw={700} c="white" ta="center">
+                    {forecastChartData.length > 0 && forecastChartData[0].forecastMin !== null 
+                      ? `${forecastChartData[0].forecastMin.toFixed(0)}°` 
+                      : minTemp !== null ? `${minTemp.toFixed(0)}°` : 'N/A'}
+                  </Text>
+                </Box>
+              </Box>
+            </Box>
+            {/* 7 Day Snowfall */}
             <StatBlock
               icon={<IconDroplet size={14} />}
-              label="7d Snow"
+              label="7 Day Snowfall"
               value={totalHistoricalSnowfall > 0 ? `${totalHistoricalSnowfall.toFixed(1)}"` : '0"'}
               color="blue"
             />
+            {/* 7 Day Forecast */}
             <StatBlock
               icon={<IconSnowflake size={14} />}
-              label="Forecast"
+              label="7 Day Forecast"
               value={totalForecastSnow > 0 ? `${totalForecastSnow.toFixed(1)}"` : '0"'}
-              trend={<Text size="xs" c="dimmed">7d</Text>}
               color="teal"
             />
           </SimpleGrid>
         </Box>
       </Group>
 
-      {/* Row 2 Desktop: Historical and Forecast Temperature side by side */}
+      {/* Row 2 Desktop: Historical Temperature + Snowfall, and Forecast side by side */}
       <Group gap="md" align="stretch" grow preventGrowOverflow={false} wrap="nowrap" className={styles.row2Desktop}>
-        {/* Historical Temperature Chart */}
+        {/* Historical Weather - Temperature (hourly) + Snowfall (daily) */}
         <Box
           style={{
             flex: hasForecastData ? '1 1 50%' : '1 1 100%',
@@ -703,12 +771,14 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
               </Group>
             </Group>
           </Group>
-          {historicalChartData.length > 0 ? (
+          
+          {/* Daily High/Low Temperature + Daily Snowfall Chart (dual axis) */}
+          {historicalDailyData.length > 0 ? (
             <CompositeChart
               h={140}
-              data={historicalChartData}
+              data={historicalDailyData}
               dataKey="date"
-              series={historicalSeries}
+              series={historicalDailySeries}
               curveType="monotone"
               withXAxis
               withYAxis
@@ -729,8 +799,7 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
                 width: 28,
                 tickFormatter: (value: number) => `${value}"`,
               }}
-              withDots
-              dotProps={{ r: 2 }}
+              withDots={false}
               withTooltip
               tooltipProps={{
                 content: ({ payload }) => {
@@ -748,15 +817,19 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
                         minWidth: 140,
                       }}
                     >
-                      <Text size="sm" fw={600} c="white" mb={6}>{item.date}</Text>
-                      <Group gap="md" mb={4}>
-                        <Text size="xs" c="red.4">High: {item.max?.toFixed(0) ?? '—'}°F</Text>
-                        <Text size="xs" c="blue.4">Low: {item.min?.toFixed(0) ?? '—'}°F</Text>
-                      </Group>
+                      <Text size="sm" fw={600} c="white" mb={4}>{item.date}</Text>
+                      <Text size="xs" c="red.4" mb={2}>
+                        <IconTemperature size={10} style={{ marginRight: 2, verticalAlign: 'middle' }} />
+                        High: {item.high?.toFixed(0) ?? '—'}°F
+                      </Text>
+                      <Text size="xs" c="blue.4" mb={2}>
+                        <IconTemperature size={10} style={{ marginRight: 2, verticalAlign: 'middle' }} />
+                        Low: {item.low?.toFixed(0) ?? '—'}°F
+                      </Text>
                       {item.snowfall !== null && item.snowfall > 0 && (
                         <Text size="xs" c="cyan.4">
                           <IconSnowflake size={10} style={{ marginRight: 2, verticalAlign: 'middle' }} />
-                          +{item.snowfall.toFixed(1)}" new snow
+                          {item.snowfall.toFixed(1)}" snow
                         </Text>
                       )}
                     </Box>
@@ -766,13 +839,13 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
               strokeWidth={2}
               gridProps={{ display: 'none' }}
               xAxisProps={{
-                tick: { fill: 'var(--mantine-color-dimmed)', fontSize: 9 },
+                tick: { fill: 'var(--mantine-color-dimmed)', fontSize: 8 },
                 tickLine: false,
                 axisLine: false,
               }}
             />
           ) : (
-            <Text c="dimmed" size="sm" ta="center" py="lg">
+            <Text c="dimmed" size="sm" ta="center" py="md">
               No temperature data available
             </Text>
           )}
@@ -976,41 +1049,76 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
           )}
         </Box>
 
-        {/* 2. Stats Boxes (4 blocks, 2x2 on mobile) */}
+        {/* 2. Stats Boxes (2x2 on mobile with temp split) */}
         <SimpleGrid cols={2} spacing="sm">
           <StatBlock
             icon={<IconSnowflake size={14} />}
-            label="Depth"
+            label="Base Depth"
             value={trend.latestSnowDepthIn !== null ? `${trend.latestSnowDepthIn.toFixed(0)}"` : 'N/A'}
             color="cyan"
           />
-          <StatBlock
-            icon={<IconTemperature size={14} />}
-            label="Temp"
-            value={trend.tempAvgF !== null ? `${trend.tempAvgF.toFixed(0)}°` : 'N/A'}
-            trend={
-              minTemp !== null && maxTemp !== null ? (
-                <Text size="xs" c="dimmed">{minTemp.toFixed(0)}° / {maxTemp.toFixed(0)}°</Text>
-              ) : undefined
-            }
-            color="orange"
-          />
+          {/* Temp High/Low stacked */}
+          <Stack gap="xs">
+            <Box
+              style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                borderRadius: 8,
+                padding: '8px 12px',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <Group gap="xs" align="center" mb={4}>
+                <ThemeIcon size={20} variant="light" color="red" radius="md">
+                  <IconTemperature size={12} />
+                </ThemeIcon>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                  Today's High
+                </Text>
+              </Group>
+              <Text size="lg" fw={700} c="white" ta="center">
+                {forecastChartData.length > 0 && forecastChartData[0].forecastMax !== null 
+                  ? `${forecastChartData[0].forecastMax.toFixed(0)}°` 
+                  : maxTemp !== null ? `${maxTemp.toFixed(0)}°` : 'N/A'}
+              </Text>
+            </Box>
+            <Box
+              style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                borderRadius: 8,
+                padding: '8px 12px',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
+              <Group gap="xs" align="center" mb={4}>
+                <ThemeIcon size={20} variant="light" color="blue" radius="md">
+                  <IconTemperature size={12} />
+                </ThemeIcon>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={500}>
+                  Today's Low
+                </Text>
+              </Group>
+              <Text size="lg" fw={700} c="white" ta="center">
+                {forecastChartData.length > 0 && forecastChartData[0].forecastMin !== null 
+                  ? `${forecastChartData[0].forecastMin.toFixed(0)}°` 
+                  : minTemp !== null ? `${minTemp.toFixed(0)}°` : 'N/A'}
+              </Text>
+            </Box>
+          </Stack>
           <StatBlock
             icon={<IconDroplet size={14} />}
-            label="7d Snow"
+            label="7 Day Snowfall"
             value={totalHistoricalSnowfall > 0 ? `${totalHistoricalSnowfall.toFixed(1)}"` : '0"'}
             color="blue"
           />
           <StatBlock
             icon={<IconSnowflake size={14} />}
-            label="Forecast"
+            label="7 Day Forecast"
             value={totalForecastSnow > 0 ? `${totalForecastSnow.toFixed(1)}"` : '0"'}
-            trend={<Text size="xs" c="dimmed">7d</Text>}
             color="teal"
           />
         </SimpleGrid>
 
-        {/* 3. Historical Temperature Chart */}
+        {/* 3. Historical Temperature + Snowfall Chart (dual axis) */}
         <Box
           style={{
             background: 'rgba(255, 255, 255, 0.02)',
@@ -1038,12 +1146,14 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
               </Group>
             </Group>
           </Group>
-          {historicalChartData.length > 0 ? (
+          
+          {/* Daily High/Low Temperature + Daily Snowfall Chart (dual axis) */}
+          {historicalDailyData.length > 0 ? (
             <CompositeChart
               h={140}
-              data={historicalChartData}
+              data={historicalDailyData}
               dataKey="date"
-              series={historicalSeries}
+              series={historicalDailySeries}
               curveType="monotone"
               withXAxis
               withYAxis
@@ -1064,19 +1174,18 @@ export function WeatherCard({ weather, forecast }: WeatherCardProps) {
                 width: 28,
                 tickFormatter: (value: number) => `${value}"`,
               }}
-              withDots
-              dotProps={{ r: 2 }}
+              withDots={false}
               withTooltip
               strokeWidth={2}
               gridProps={{ display: 'none' }}
               xAxisProps={{
-                tick: { fill: 'var(--mantine-color-dimmed)', fontSize: 9 },
+                tick: { fill: 'var(--mantine-color-dimmed)', fontSize: 8 },
                 tickLine: false,
                 axisLine: false,
               }}
             />
           ) : (
-            <Text c="dimmed" size="sm" ta="center" py="lg">
+            <Text c="dimmed" size="sm" ta="center" py="md">
               No temperature data
             </Text>
           )}

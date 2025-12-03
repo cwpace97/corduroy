@@ -82,6 +82,24 @@ class ResortSummary:
 
 
 @strawberry.type
+class ResortHomeSummary:
+    """Pre-aggregated summary for home page (no individual lifts/runs)"""
+    location: str
+    total_lifts: int
+    open_lifts: int
+    closed_lifts: int
+    total_runs: int
+    open_runs: int
+    closed_runs: int
+    runs_by_difficulty: RunsByDifficulty
+    last_updated: str
+    lifts_history: List[HistoryDataPoint]
+    runs_history: List[HistoryDataPoint]
+    recently_opened_lifts: List[RecentlyOpened]
+    recently_opened_runs: List[RecentlyOpened]
+
+
+@strawberry.type
 class GlobalRecentlyOpened:
     """Global recently opened lifts and runs across all resorts"""
     lifts: List[RecentlyOpenedWithLocation]
@@ -104,6 +122,27 @@ class WeatherDataPoint:
 
 
 @strawberry.type
+class HourlyTemperaturePoint:
+    """Hourly temperature observation from Open-Meteo"""
+    date: str
+    hour: int
+    temperature_f: Optional[float] = None
+    precipitation_in: Optional[float] = None
+    snowfall_in: Optional[float] = None
+
+
+@strawberry.type
+class DailyHistoricalWeather:
+    """Daily aggregated historical weather from Open-Meteo"""
+    date: str
+    temp_min_f: Optional[float] = None
+    temp_max_f: Optional[float] = None
+    temp_avg_f: Optional[float] = None
+    precip_total_in: Optional[float] = None
+    snowfall_total_in: Optional[float] = None
+
+
+@strawberry.type
 class StationDailyData:
     """Daily data for a single SNOTEL station"""
     station_name: str
@@ -122,6 +161,7 @@ class DailyWeatherSummary:
     temp_min_f: Optional[float] = None
     temp_max_f: Optional[float] = None
     precip_total_in: Optional[float] = None
+    snowfall_total_in: Optional[float] = None
     wind_speed_avg_mph: Optional[float] = None
     wind_direction_avg_deg: Optional[int] = None
     # Per-station snow depth data for charting
@@ -155,12 +195,14 @@ class ResortWeatherSummary:
     trend: WeatherTrend
     daily_data: List[DailyWeatherSummary]
     hourly_data: List[WeatherDataPoint]
+    hourly_temperature: List[HourlyTemperaturePoint]  # Hourly temps from Open-Meteo (deprecated, use historical_weather)
+    historical_weather: List[DailyHistoricalWeather]  # Daily aggregated weather from Open-Meteo
 
 
 @strawberry.type
 class ForecastDataPoint:
     """Single forecast data point from a source"""
-    source: str  # 'NWS' or 'OPEN_METEO'
+    source: str  # 'OPEN_METEO'
     forecast_time: str  # When forecast was generated
     valid_time: str  # When forecast is valid for
     temp_high_f: Optional[float] = None
@@ -188,9 +230,15 @@ class Query:
     
     @strawberry.field
     def resorts(self) -> List[ResortSummary]:
-        """Get summary data for all ski resorts"""
+        """Get summary data for all ski resorts (includes individual lifts/runs)"""
         from .resolvers import get_all_resorts
         return get_all_resorts()
+    
+    @strawberry.field
+    def resorts_home(self) -> List[ResortHomeSummary]:
+        """Get pre-aggregated summary data for home page (no individual lifts/runs)"""
+        from .resolvers import get_all_resorts_home
+        return get_all_resorts_home()
     
     @strawberry.field
     def resort(self, location: str) -> Optional[ResortSummary]:

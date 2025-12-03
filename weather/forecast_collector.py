@@ -2,7 +2,7 @@
 """
 Weather Forecast Collector
 
-Fetches weather forecasts from NWS API and Open-Meteo API for Colorado ski resorts.
+Fetches weather forecasts from Open-Meteo API for Colorado ski resorts.
 Normalizes the data into a common schema and generates SQL INSERT statements.
 """
 
@@ -15,9 +15,8 @@ import time
 
 
 class ForecastCollector:
-    """Collects weather forecasts from multiple sources for ski resorts."""
+    """Collects weather forecasts from Open-Meteo for ski resorts."""
     
-    NWS_BASE_URL = "https://api.weather.gov"
     OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1/forecast"
     
     def __init__(self, mapping_file: str = "resort_snotel_mapping.json"):
@@ -29,7 +28,6 @@ class ForecastCollector:
         """
         self.mapping_file = mapping_file
         self.resort_coordinates = self._load_resort_coordinates()
-        self.user_agent = "CorduroyWeatherApp/1.0 (https://github.com/yourusername/corduroy)"
     
     def _load_resort_coordinates(self) -> Dict[str, Dict[str, float]]:
         """Load resort coordinates from mapping file."""
@@ -51,95 +49,6 @@ class ForecastCollector:
                     break
         
         return coordinates
-    
-    def _get_nws_grid_point(self, latitude: float, longitude: float) -> Optional[Dict[str, Any]]:
-        """
-        Get NWS grid point for a given lat/lon.
-        NWS requires a two-step process: lat/lon -> grid point -> forecast.
-        """
-        try:
-            # Step 1: Get grid point
-            points_url = f"{self.NWS_BASE_URL}/points/{latitude:.4f},{longitude:.4f}"
-            headers = {"User-Agent": self.user_agent, "Accept": "application/json"}
-            
-            response = requests.get(points_url, headers=headers, timeout=10)
-            response.raise_for_status()
-            points_data = response.json()
-            
-            # Extract forecast URL from properties
-            forecast_url = points_data.get("properties", {}).get("forecast")
-            if not forecast_url:
-                print(f"  ⚠️  No forecast URL found for {latitude},{longitude}")
-                return None
-            
-            # Step 2: Get forecast
-            forecast_response = requests.get(forecast_url, headers=headers, timeout=10)
-            forecast_response.raise_for_status()
-            forecast_data = forecast_response.json()
-            
-            return forecast_data
-            
-        except requests.exceptions.RequestException as e:
-            print(f"  ❌ Error fetching NWS data: {str(e)}")
-            return None
-    
-    def _parse_nws_forecast(self, forecast_data: Dict[str, Any], resort_name: str, forecast_time: datetime) -> List[Dict[str, Any]]:
-        """Parse NWS forecast data into normalized format."""
-        forecasts = []
-        
-        periods = forecast_data.get("properties", {}).get("periods", [])
-        
-        for period in periods:
-            # NWS provides day/night periods, we'll use both
-            valid_start = datetime.fromisoformat(period["startTime"].replace("Z", "+00:00"))
-            
-            # Extract temperature
-            temp_high = period.get("temperature")
-            temp_low = None
-            
-            # NWS provides isDaytime flag - use high temp for day, low for night
-            if period.get("isDaytime"):
-                temp_high = period.get("temperature")
-            else:
-                temp_low = period.get("temperature")
-            
-            # Extract wind
-            wind_speed_str = period.get("windSpeed", "")
-            wind_speed = self._parse_wind_speed(wind_speed_str)
-            wind_direction_str = period.get("windDirection", "")
-            wind_direction = self._parse_wind_direction(wind_direction_str)
-            
-            # Extract precipitation probability
-            precip_prob = period.get("probabilityOfPrecipitation", {}).get("value")
-            
-            # Extract conditions
-            conditions = period.get("shortForecast", "")
-            icon = period.get("icon", "")
-            
-            # Try to extract snow amount from detailed forecast
-            detailed_forecast = period.get("detailedForecast", "")
-            snow_amount = self._extract_snow_amount(detailed_forecast)
-            
-            forecast = {
-                "resort_name": resort_name,
-                "source": "NWS",
-                "forecast_time": forecast_time,
-                "valid_time": valid_start,
-                "temp_high_f": temp_high,
-                "temp_low_f": temp_low,
-                "snow_amount_in": snow_amount,
-                "precip_amount_in": None,  # NWS doesn't provide this directly
-                "precip_prob_pct": precip_prob,
-                "wind_speed_mph": wind_speed,
-                "wind_direction_deg": wind_direction,
-                "wind_gust_mph": None,
-                "conditions_text": conditions,
-                "icon_code": icon,
-            }
-            
-            forecasts.append(forecast)
-        
-        return forecasts
     
     def _fetch_open_meteo_forecast(self, latitude: float, longitude: float) -> Optional[Dict[str, Any]]:
         """Fetch forecast from Open-Meteo API."""
@@ -234,63 +143,6 @@ class ForecastCollector:
         
         return forecasts
     
-    def _parse_wind_speed(self, wind_speed_str: str) -> Optional[float]:
-        """Parse wind speed string like '5 to 10 mph' or '10 mph'."""
-        if not wind_speed_str:
-            return None
-        
-        try:
-            # Extract numbers from string
-            import re
-            numbers = re.findall(r'\d+', wind_speed_str)
-            if numbers:
-                # Take the average if range, or single value
-                if len(numbers) >= 2:
-                    return (float(numbers[0]) + float(numbers[1])) / 2
-                else:
-                    return float(numbers[0])
-        except:
-            pass
-        
-        return None
-    
-    def _parse_wind_direction(self, wind_direction_str: str) -> Optional[int]:
-        """Parse wind direction string like 'N' or 'NW' to degrees."""
-        if not wind_direction_str:
-            return None
-        
-        direction_map = {
-            "N": 0, "NNE": 22, "NE": 45, "ENE": 67,
-            "E": 90, "ESE": 112, "SE": 135, "SSE": 157,
-            "S": 180, "SSW": 202, "SW": 225, "WSW": 247,
-            "W": 270, "WNW": 292, "NW": 315, "NNW": 337
-        }
-        
-        return direction_map.get(wind_direction_str.upper())
-    
-    def _extract_snow_amount(self, detailed_forecast: str) -> Optional[float]:
-        """Extract snow amount in inches from detailed forecast text."""
-        if not detailed_forecast:
-            return None
-        
-        import re
-        # Look for patterns like "1 to 3 inches" or "2 inches"
-        patterns = [
-            r'(\d+(?:\.\d+)?)\s*to\s*(\d+(?:\.\d+)?)\s*inch',
-            r'(\d+(?:\.\d+)?)\s*inch',
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, detailed_forecast.lower())
-            if match:
-                if len(match.groups()) == 2:
-                    # Range - take average
-                    return (float(match.group(1)) + float(match.group(2))) / 2
-                else:
-                    return float(match.group(1))
-        
-        return None
-    
     def _calculate_average_wind_direction(self, directions: List[float]) -> float:
         """Calculate average wind direction (handles circular nature of degrees)."""
         if not directions:
@@ -345,7 +197,7 @@ class ForecastCollector:
         return code_map.get(code, f"Unknown ({code})")
     
     def fetch_all_forecasts(self) -> List[Dict[str, Any]]:
-        """Fetch forecasts from all sources for all resorts."""
+        """Fetch forecasts from Open-Meteo for all resorts."""
         all_forecasts = []
         forecast_time = datetime.now()
         
@@ -359,19 +211,6 @@ class ForecastCollector:
             
             print(f"📍 {resort_name} ({lat}, {lon})")
             
-            # Fetch NWS forecast
-            print("  Fetching NWS forecast...")
-            nws_data = self._get_nws_grid_point(lat, lon)
-            if nws_data:
-                nws_forecasts = self._parse_nws_forecast(nws_data, resort_name, forecast_time)
-                all_forecasts.extend(nws_forecasts)
-                print(f"  ✅ NWS: {len(nws_forecasts)} periods")
-            else:
-                print(f"  ⚠️  NWS: No data")
-            
-            # Small delay to be respectful to APIs
-            time.sleep(0.5)
-            
             # Fetch Open-Meteo forecast
             print("  Fetching Open-Meteo forecast...")
             om_data = self._fetch_open_meteo_forecast(lat, lon)
@@ -383,7 +222,7 @@ class ForecastCollector:
                 print(f"  ⚠️  Open-Meteo: No data")
             
             print()
-            time.sleep(0.5)  # Rate limiting
+            time.sleep(0.3)  # Rate limiting
         
         return all_forecasts
     

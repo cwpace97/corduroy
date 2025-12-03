@@ -33,7 +33,7 @@ variable "ec2_security_group_id" {
 }
 
 variable "subnet_ids" {
-  description = "List of subnet IDs for ECS tasks (can be public or private)"
+  description = "List of subnet IDs for ECS tasks and Lambda functions (can be public or private)"
   type        = list(string)
 }
 
@@ -46,25 +46,13 @@ variable "database_url_secret_name" {
 variable "resort_scraper_cpu" {
   description = "CPU units for resort scraper task (1024 = 1 vCPU)"
   type        = number
-  default     = 1024 # 2 vCPU
+  default     = 1024
 }
 
 variable "resort_scraper_memory" {
   description = "Memory in MB for resort scraper task"
   type        = number
-  default     = 2048 # 4 GB
-}
-
-variable "snotel_scraper_cpu" {
-  description = "CPU units for SNOTEL scraper task (1024 = 1 vCPU)"
-  type        = number
-  default     = 256 # 0.25 vCPU
-}
-
-variable "snotel_scraper_memory" {
-  description = "Memory in MB for SNOTEL scraper task"
-  type        = number
-  default     = 512 # 512 MB
+  default     = 2048
 }
 
 variable "assign_public_ip" {
@@ -73,15 +61,39 @@ variable "assign_public_ip" {
   default     = true
 }
 
-variable "forecast_scraper_cpu" {
-  description = "CPU units for forecast scraper task (1024 = 1 vCPU)"
+variable "snotel_memory" {
+  description = "Memory in MB for SNOTEL Lambda"
   type        = number
-  default     = 256 # 0.25 vCPU
+  default     = 512
 }
 
-variable "forecast_scraper_memory" {
-  description = "Memory in MB for forecast scraper task"
+variable "snotel_timeout" {
+  description = "Timeout in seconds for SNOTEL Lambda"
   type        = number
-  default     = 512 # 512 MB
+  default     = 300
+}
+
+variable "forecast_memory" {
+  description = "Memory in MB for forecast Lambda"
+  type        = number
+  default     = 512
+}
+
+variable "forecast_timeout" {
+  description = "Timeout in seconds for forecast Lambda"
+  type        = number
+  default     = 300
+}
+
+variable "historical_weather_memory" {
+  description = "Memory in MB for historical weather Lambda"
+  type        = number
+  default     = 512
+}
+
+variable "historical_weather_timeout" {
+  description = "Timeout in seconds for historical weather Lambda"
+  type        = number
+  default     = 300
 }
 

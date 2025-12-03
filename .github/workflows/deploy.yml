@@ -1,4 +1,4 @@
-name: Deploy to ECR and EC2
+name: Deploy to AWS
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
         type: choice
         options:
           - all
-          - ecs-only
+          - lambdas-only
           - ec2-only
         default: 'all'
 
@@ -22,14 +22,14 @@ env:
   EC2_REMOTE_DIR: /home/ubuntu/corduroy
 
 jobs:
-  # Build and push Docker images to ECR for ECS scheduled tasks
-  build-and-push-ecs-images:
-    name: Build and Push ECS Images
+  # Build and push Lambda container images to ECR
+  build-and-push-lambda-images:
+    name: Build and Push Lambda Images
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'workflow_dispatch' && 
-       (github.event.inputs.deploy_type == 'all' || github.event.inputs.deploy_type == 'ecs-only'))
+       (github.event.inputs.deploy_type == 'all' || github.event.inputs.deploy_type == 'lambdas-only'))
     
     steps:
       - name: Checkout code
@@ -55,34 +55,86 @@ jobs:
           ECR_REPOSITORY: ${{ env.PROJECT_NAME }}-resort-scraper
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build --platform linux/amd64 -f Dockerfile.resort-scraper \
+          docker buildx build --platform linux/amd64 \
+            --provenance=false \
+            -f Dockerfile.resort-scraper \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            --push .
           echo "Resort scraper image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-      - name: Build and push SNOTEL scraper
+      - name: Build and push SNOTEL Lambda
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ env.PROJECT_NAME }}-snotel
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build --platform linux/amd64 -f Dockerfile.snotel \
+          docker buildx build --platform linux/amd64 \
+            --provenance=false \
+            -f lambdas/snotel/Dockerfile \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "SNOTEL scraper image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            --push .
+          echo "SNOTEL Lambda image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
-      - name: Force new ECS task definition deployment
+      - name: Build and push Forecast Lambda
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.PROJECT_NAME }}-forecast
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Update ECS task definitions to use the new images
-          # This forces ECS to pull the latest image on next scheduled run
-          echo "ECS task definitions updated with new images"
-          echo "Next scheduled run will use the updated images:"
+          docker buildx build --platform linux/amd64 \
+            --provenance=false \
+            -f lambdas/forecast/Dockerfile \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            --push .
+          echo "Forecast Lambda image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Build and push Historical Weather Lambda
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.PROJECT_NAME }}-historical-weather
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker buildx build --platform linux/amd64 \
+            --provenance=false \
+            -f lambdas/historical_weather/Dockerfile \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            --push .
+          echo "Historical Weather Lambda image: $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Update Lambda functions with new images
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "Updating Lambda functions to use new images..."
+          
+          # Update SNOTEL Lambda
+          aws lambda update-function-code \
+            --function-name ${{ env.PROJECT_NAME }}-snotel \
+            --image-uri $ECR_REGISTRY/${{ env.PROJECT_NAME }}-snotel:latest \
+            --no-cli-pager || echo "SNOTEL Lambda update skipped (may not exist yet)"
+          
+          # Update Forecast Lambda
+          aws lambda update-function-code \
+            --function-name ${{ env.PROJECT_NAME }}-forecast \
+            --image-uri $ECR_REGISTRY/${{ env.PROJECT_NAME }}-forecast:latest \
+            --no-cli-pager || echo "Forecast Lambda update skipped (may not exist yet)"
+          
+          # Update Historical Weather Lambda
+          aws lambda update-function-code \
+            --function-name ${{ env.PROJECT_NAME }}-historical-weather \
+            --image-uri $ECR_REGISTRY/${{ env.PROJECT_NAME }}-historical-weather:latest \
+            --no-cli-pager || echo "Historical Weather Lambda update skipped (may not exist yet)"
+          
+          echo "Lambda functions updated!"
+          echo "Next scheduled runs will use the updated images:"
           echo "  - Resort scraper: Daily at 5 AM MT (12:00 UTC)"
-          echo "  - SNOTEL scraper: Every hour"
+          echo "  - SNOTEL: Every 3 hours"
+          echo "  - Forecast: Every 6 hours (Open-Meteo)"
+          echo "  - Historical Weather: Daily at 6 AM MT (13:00 UTC)"
 
   # Deploy backend and frontend to EC2
   deploy-ec2:

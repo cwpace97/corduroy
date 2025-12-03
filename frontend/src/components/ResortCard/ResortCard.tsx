@@ -11,7 +11,7 @@ import {
 } from '@mantine/core';
 import { MiniLineChart } from '@/components/MiniLineChart/MiniLineChart';
 import { StatsRing } from '@/components/StatsRing/StatsRing';
-import { WeatherSummary, WeatherTrend, DailyData } from '@/components/WeatherSummary/WeatherSummary';
+import { WeatherSummary, WeatherTrend, DailyData, HistoricalWeatherData, ForecastDataPoint } from '@/components/WeatherSummary/WeatherSummary';
 import styles from './ResortCard.module.css';
 
 export interface Lift {
@@ -39,6 +39,15 @@ export interface RecentlyOpenedItem {
   dateOpened: string;
 }
 
+export interface RunsByDifficulty {
+  green: number;
+  blue: number;
+  black: number;
+  doubleBlack: number;
+  terrainPark: number;
+  other: number;
+}
+
 export interface Resort {
   location: string;
   totalLifts: number;
@@ -46,8 +55,9 @@ export interface Resort {
   totalRuns: number;
   openRuns: number;
   lastUpdated: string;
-  lifts: Lift[];
-  runs: Run[];
+  lifts?: Lift[];  // Optional - not included in home page query
+  runs?: Run[];    // Optional - not included in home page query
+  runsByDifficulty?: RunsByDifficulty;
   liftsHistory: HistoryPoint[];
   runsHistory: HistoryPoint[];
   recentlyOpenedLifts: RecentlyOpenedItem[];
@@ -58,9 +68,11 @@ export interface ResortCardProps {
   resort: Resort;
   weatherTrend?: WeatherTrend | null;
   dailyData?: DailyData[];
+  historicalWeather?: HistoricalWeatherData[];
+  forecasts?: ForecastDataPoint[];
 }
 
-export function ResortCard({ resort, weatherTrend, dailyData }: ResortCardProps) {
+export function ResortCard({ resort, weatherTrend, dailyData, historicalWeather, forecasts }: ResortCardProps) {
   return (
     <Card
       radius="md"
@@ -74,7 +86,7 @@ export function ResortCard({ resort, weatherTrend, dailyData }: ResortCardProps)
     >
       <Group gap="md" wrap="nowrap" align="center" className={styles.desktopLayout}>
         {/* 1. Resort Name */}
-        <Box style={{ minWidth: 140 }}>
+        <Box style={{ minWidth: 140, flex: '0 0 auto' }}>
           <Title order={3} c="white" size="h4">
             {resort.location}
           </Title>
@@ -85,16 +97,23 @@ export function ResortCard({ resort, weatherTrend, dailyData }: ResortCardProps)
 
         <Divider orientation="vertical" color="dark.4" />
 
-        {/* 2. Weather Summary */}
+        {/* 2. Weather Summary - wider box */}
         <Box
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minWidth: 140,
+            minWidth: 220,
+            flex: '0 0 auto',
           }}
         >
-          <WeatherSummary trend={weatherTrend ?? null} dailyData={dailyData} compact />
+          <WeatherSummary 
+            trend={weatherTrend ?? null} 
+            dailyData={dailyData} 
+            historicalWeather={historicalWeather}
+            forecasts={forecasts}
+            compact 
+          />
         </Box>
 
         <Divider orientation="vertical" color="dark.4" />
@@ -105,6 +124,7 @@ export function ResortCard({ resort, weatherTrend, dailyData }: ResortCardProps)
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            flex: '0 0 auto',
           }}
         >
           <StatsRing
@@ -116,7 +136,7 @@ export function ResortCard({ resort, weatherTrend, dailyData }: ResortCardProps)
         </Box>
 
         {/* 4. Lifts History Chart */}
-        <Box style={{ flex: 1, minWidth: 120 }}>
+        <Box style={{ flex: '1 1 auto', minWidth: 100 }}>
           <Text c="dimmed" size="xs" mb={4}>
             Lifts 7-Day
           </Text>
@@ -136,6 +156,7 @@ export function ResortCard({ resort, weatherTrend, dailyData }: ResortCardProps)
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            flex: '0 0 auto',
           }}
         >
           <StatsRing
@@ -147,7 +168,7 @@ export function ResortCard({ resort, weatherTrend, dailyData }: ResortCardProps)
         </Box>
 
         {/* 6. Runs History Chart */}
-        <Box style={{ flex: 1, minWidth: 120 }}>
+        <Box style={{ flex: '1 1 auto', minWidth: 100 }}>
           <Text c="dimmed" size="xs" mb={4}>
             Runs 7-Day
           </Text>
@@ -172,7 +193,13 @@ export function ResortCard({ resort, weatherTrend, dailyData }: ResortCardProps)
               Updated: {resort.lastUpdated}
             </Text>
           </Box>
-          <WeatherSummary trend={weatherTrend ?? null} dailyData={dailyData} compact />
+          <WeatherSummary 
+            trend={weatherTrend ?? null} 
+            dailyData={dailyData} 
+            historicalWeather={historicalWeather}
+            forecasts={forecasts}
+            compact 
+          />
         </Group>
 
         {/* Row 2: Lifts Stats + Chart */}

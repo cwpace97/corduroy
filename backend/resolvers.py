@@ -6,10 +6,11 @@ import psycopg2.extras
 import os
 from typing import List, Optional
 from .schema import (
-    ResortSummary, Lift, Run, RunsByDifficulty, HistoryDataPoint, 
+    ResortSummary, ResortHomeSummary, Lift, Run, RunsByDifficulty, HistoryDataPoint, 
     RecentlyOpened, GlobalRecentlyOpened, RecentlyOpenedWithLocation,
     WeatherDataPoint, DailyWeatherSummary, WeatherTrend, ResortWeatherSummary,
-    StationInfo, StationDailyData, ForecastDataPoint, ResortForecast
+    StationInfo, StationDailyData, ForecastDataPoint, ResortForecast,
+    HourlyTemperaturePoint, DailyHistoricalWeather
 )
 
 
@@ -39,6 +40,84 @@ def get_all_resorts() -> List[ResortSummary]:
             resorts.append(resort)
     
     conn.close()
+    return resorts
+
+
+def get_all_resorts_home() -> List[ResortHomeSummary]:
+    """Get pre-aggregated summary data for home page using v_resort_summary view"""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    cursor.execute("""
+        SELECT 
+            location,
+            total_lifts,
+            open_lifts,
+            closed_lifts,
+            total_runs,
+            open_runs,
+            closed_runs,
+            green_runs,
+            blue_runs,
+            black_runs,
+            double_black_runs,
+            terrain_park_runs,
+            other_runs,
+            last_updated,
+            lifts_history,
+            runs_history,
+            recently_opened_lifts,
+            recently_opened_runs
+        FROM SKI_DATA.v_resort_summary
+        ORDER BY location
+    """)
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    resorts = []
+    for row in rows:
+        # Parse JSON arrays from the view
+        lifts_history = [
+            HistoryDataPoint(date=h['date'], open_count=h['openCount'])
+            for h in (row['lifts_history'] or [])
+        ]
+        runs_history = [
+            HistoryDataPoint(date=h['date'], open_count=h['openCount'])
+            for h in (row['runs_history'] or [])
+        ]
+        recently_opened_lifts = [
+            RecentlyOpened(name=h['name'], date_opened=h['dateOpened'])
+            for h in (row['recently_opened_lifts'] or [])[:3]
+        ]
+        recently_opened_runs = [
+            RecentlyOpened(name=h['name'], date_opened=h['dateOpened'])
+            for h in (row['recently_opened_runs'] or [])[:3]
+        ]
+        
+        resorts.append(ResortHomeSummary(
+            location=row['location'],
+            total_lifts=row['total_lifts'],
+            open_lifts=row['open_lifts'],
+            closed_lifts=row['closed_lifts'],
+            total_runs=row['total_runs'],
+            open_runs=row['open_runs'],
+            closed_runs=row['closed_runs'],
+            runs_by_difficulty=RunsByDifficulty(
+                green=row['green_runs'],
+                blue=row['blue_runs'],
+                black=row['black_runs'],
+                double_black=row['double_black_runs'],
+                terrain_park=row['terrain_park_runs'],
+                other=max(0, row['other_runs'])  # Ensure non-negative
+            ),
+            last_updated=row['last_updated'] or "Unknown",
+            lifts_history=lifts_history,
+            runs_history=runs_history,
+            recently_opened_lifts=recently_opened_lifts,
+            recently_opened_runs=recently_opened_runs
+        ))
+    
     return resorts
 
 
@@ -515,6 +594,43 @@ def get_resort_weather(resort_name: str, days: int = 7) -> Optional[ResortWeathe
             wind_speed_max_mph=weighted_avg_hourly('wind_speed_max_mph'),
         ))
     
+    # Get daily aggregated historical weather from the view (much smaller response)
+    cursor.execute("""
+        SELECT 
+            observation_date::text as date,
+            temp_min_f,
+            temp_max_f,
+            temp_avg_f,
+            precip_total_in,
+            snowfall_total_in
+        FROM WEATHER_DATA.historical_weather_daily
+        WHERE resort_name = %s
+          AND observation_date >= CURRENT_DATE - INTERVAL '%s days'
+        ORDER BY observation_date ASC
+    """, (normalized_name, days))
+    
+    daily_weather_rows = cursor.fetchall()
+    historical_weather = [
+        DailyHistoricalWeather(
+            date=row['date'],
+            temp_min_f=float(row['temp_min_f']) if row['temp_min_f'] is not None else None,
+            temp_max_f=float(row['temp_max_f']) if row['temp_max_f'] is not None else None,
+            temp_avg_f=float(row['temp_avg_f']) if row['temp_avg_f'] is not None else None,
+            precip_total_in=float(row['precip_total_in']) if row['precip_total_in'] is not None else None,
+            snowfall_total_in=float(row['snowfall_total_in']) if row['snowfall_total_in'] is not None else None,
+        )
+        for row in daily_weather_rows
+    ]
+    
+    # Keep hourly_temperature empty for backward compatibility (deprecated)
+    hourly_temperature: List[HourlyTemperaturePoint] = []
+    
+    # Update daily_data with snowfall totals from historical_weather
+    daily_snowfall = {row['date']: float(row['snowfall_total_in']) if row['snowfall_total_in'] else 0 for row in daily_weather_rows}
+    for d in daily_data:
+        if d.date in daily_snowfall:
+            d.snowfall_total_in = round(daily_snowfall[d.date], 2)
+    
     # Calculate trend based on weighted daily data
     trend = _calculate_weather_trend(daily_data, hourly_data)
     
@@ -526,6 +642,8 @@ def get_resort_weather(resort_name: str, days: int = 7) -> Optional[ResortWeathe
         trend=trend,
         daily_data=daily_data,
         hourly_data=hourly_data,
+        hourly_temperature=hourly_temperature,
+        historical_weather=historical_weather,
     )
 
 
@@ -637,7 +755,7 @@ def get_resort_forecast(resort_name: str, days: int = 7) -> Optional[ResortForec
     
     normalized_name = resort_name_map.get(resort_name.lower(), resort_name)
     
-    # Get forecasts from all sources
+    # Get forecasts from all sources (use CURRENT_DATE to include today's forecast)
     cursor.execute("""
         SELECT 
             source,
@@ -655,8 +773,8 @@ def get_resort_forecast(resort_name: str, days: int = 7) -> Optional[ResortForec
             icon_code
         FROM WEATHER_DATA.weather_forecasts
         WHERE resort_name = %s
-          AND valid_time >= CURRENT_TIMESTAMP
-          AND valid_time <= CURRENT_TIMESTAMP + INTERVAL '%s days'
+          AND valid_time >= CURRENT_DATE
+          AND valid_time <= CURRENT_DATE + INTERVAL '%s days'
         ORDER BY source, valid_time ASC
     """, (normalized_name, days))
     
@@ -696,11 +814,11 @@ def get_all_resort_forecasts(days: int = 7) -> List[ResortForecast]:
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
-    # Get all unique resort names from forecasts
+    # Get all unique resort names from forecasts (use CURRENT_DATE to include today)
     cursor.execute("""
         SELECT DISTINCT resort_name
         FROM WEATHER_DATA.weather_forecasts
-        WHERE valid_time >= CURRENT_TIMESTAMP
+        WHERE valid_time >= CURRENT_DATE
         ORDER BY resort_name
     """)
     
