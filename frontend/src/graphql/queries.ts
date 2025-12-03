@@ -1,5 +1,99 @@
 import { gql } from '@apollo/client/core';
 
+// Home page query - uses pre-aggregated view (no individual lifts/runs)
+export const GET_RESORTS_HOME = gql`
+  query GetResortsHome {
+    resortsHome {
+      location
+      totalLifts
+      openLifts
+      closedLifts
+      totalRuns
+      openRuns
+      closedRuns
+      lastUpdated
+      runsByDifficulty {
+        green
+        blue
+        black
+        doubleBlack
+        terrainPark
+        other
+      }
+      liftsHistory {
+        date
+        openCount
+      }
+      runsHistory {
+        date
+        openCount
+      }
+      recentlyOpenedLifts {
+        name
+        dateOpened
+      }
+      recentlyOpenedRuns {
+        name
+        dateOpened
+      }
+    }
+    globalRecentlyOpened {
+      lifts {
+        name
+        location
+        dateOpened
+        liftType
+        liftCategory
+        liftSize
+      }
+      runs {
+        name
+        location
+        dateOpened
+      }
+    }
+    allResortWeather(days: 7) {
+      resortName
+      stations {
+        stationName
+        stationTriplet
+        distanceMiles
+      }
+      trend {
+        snowDepthChangeIn
+        snowDepthTrend
+        tempAvgF
+        totalPrecipIn
+        latestSnowDepthIn
+        snowConditions
+      }
+      dailyData {
+        date
+        tempMinF
+        tempMaxF
+        precipTotalIn
+        snowfallTotalIn
+      }
+      historicalWeather {
+        date
+        tempMinF
+        tempMaxF
+        snowfallTotalIn
+      }
+    }
+    allResortForecasts(days: 7) {
+      resortName
+      forecasts {
+        validTime
+        tempHighF
+        tempLowF
+        snowAmountIn
+      }
+    }
+  }
+`;
+
+// Full resort details query - includes individual lifts/runs (for detail pages)
 export const GET_RESORTS = gql`
   query GetResorts {
     resorts {

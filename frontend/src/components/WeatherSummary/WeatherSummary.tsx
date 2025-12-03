@@ -170,11 +170,6 @@ export function WeatherSummary({ trend, dailyData, historicalWeather, forecasts,
   const conditionColor = getConditionColor(trend.snowConditions);
   const trendColor = getTrendColor(trend.snowDepthTrend);
 
-  // Get most recent daily data for high/low temps
-  const latestDaily = dailyData && dailyData.length > 0 
-    ? dailyData[dailyData.length - 1] 
-    : null;
-
   // Calculate 7-day historical snowfall
   const sevenDayHistoricalSnowfall = (historicalWeather ?? [])
     .filter(h => h.snowfallTotalIn !== null && h.snowfallTotalIn > 0)
@@ -198,23 +193,24 @@ export function WeatherSummary({ trend, dailyData, historicalWeather, forecasts,
       if (!existing) {
         forecastByDate.set(dateKey, { high: f.tempHighF, low: f.tempLowF, snow: f.snowAmountIn });
       } else {
-        // Merge: prefer non-null values, accumulate snow
-        if (existing.high === null && f.tempHighF !== null) existing.high = f.tempHighF;
-        if (existing.low === null && f.tempLowF !== null) existing.low = f.tempLowF;
-        if (existing.snow === null && f.snowAmountIn !== null) existing.snow = f.snowAmountIn;
-        else if (f.snowAmountIn !== null) existing.snow = (existing.snow ?? 0) + f.snowAmountIn;
+        // Merge: take the max for high, min for low, accumulate snow
+        if (f.tempHighF !== null) {
+          existing.high = existing.high !== null ? Math.max(existing.high, f.tempHighF) : f.tempHighF;
+        }
+        if (f.tempLowF !== null) {
+          existing.low = existing.low !== null ? Math.min(existing.low, f.tempLowF) : f.tempLowF;
+        }
+        if (f.snowAmountIn !== null) {
+          existing.snow = (existing.snow ?? 0) + f.snowAmountIn;
+        }
       }
     }
   }
 
-  // Get today's forecast - use forecast values, only fall back to historical if no forecast
+  // Get today's forecast - backend now includes today's data
   const todayForecast = forecastByDate.get(todayDateKey);
-  const todayHigh = todayForecast?.high !== null && todayForecast?.high !== undefined 
-    ? todayForecast.high 
-    : (latestDaily?.tempMaxF ?? null);
-  const todayLow = todayForecast?.low !== null && todayForecast?.low !== undefined 
-    ? todayForecast.low 
-    : (latestDaily?.tempMinF ?? null);
+  const todayHigh = todayForecast?.high ?? null;
+  const todayLow = todayForecast?.low ?? null;
 
   // Calculate 7-day forecast snow
   const sevenDayForecastSnow = Array.from(forecastByDate.entries())
@@ -322,7 +318,7 @@ export function WeatherSummary({ trend, dailyData, historicalWeather, forecasts,
         </ThemeIcon>
       </Group>
       <Text size="xs" c="dimmed">
-        H: {latestDaily?.tempMaxF?.toFixed(0) ?? '—'}° L: {latestDaily?.tempMinF?.toFixed(0) ?? '—'}°
+        H: {todayHigh?.toFixed(0) ?? '—'}° L: {todayLow?.toFixed(0) ?? '—'}°
       </Text>
       <Text size="xs" c="dimmed">
         Precip: {trend.totalPrecipIn.toFixed(1)}"

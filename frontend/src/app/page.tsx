@@ -15,7 +15,7 @@ import {
   Box,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { GET_RESORTS } from '@/graphql/queries';
+import { GET_RESORTS_HOME } from '@/graphql/queries';
 import { ResortCard, Resort } from '@/components/ResortCard/ResortCard';
 import { WeatherTrend, DailyData } from '@/components/WeatherSummary/WeatherSummary';
 
@@ -52,8 +52,8 @@ interface ResortForecastSummary {
   forecasts: ForecastDataPoint[];
 }
 
-interface GetResortsData {
-  resorts: Resort[];
+interface GetResortsHomeData {
+  resortsHome: Resort[];
   allResortWeather: ResortWeatherSummary[];
   allResortForecasts: ResortForecastSummary[];
 }
@@ -61,7 +61,7 @@ interface GetResortsData {
 type SortOption = 'name' | 'baseDepth' | 'recentSnow' | 'forecastSnow' | 'lifts' | 'runs';
 
 export default function HomePage() {
-  const { loading, error, data } = useQuery<GetResortsData>(GET_RESORTS);
+  const { loading, error, data } = useQuery<GetResortsHomeData>(GET_RESORTS_HOME);
   const [sortBy, setSortBy] = useState<SortOption>('forecastSnow');
 
   // Normalize a resort name by removing spaces and converting to lowercase
@@ -114,9 +114,9 @@ export default function HomePage() {
 
   // Sort resorts based on selected option
   const sortedResorts = useMemo(() => {
-    if (!data?.resorts) return [];
-    
-    const resorts = [...data.resorts];
+    if (!data?.resortsHome) return [];
+
+    const resorts = [...data.resortsHome];
     
     // Helper to calculate 7-day forecast snow for a resort (inline to capture closure)
     const calcForecastSnow = (location: string): number => {
@@ -203,7 +203,7 @@ export default function HomePage() {
       default:
         return resorts;
     }
-  }, [data?.resorts, sortBy, weatherByResort, forecastByResort]);
+  }, [data?.resortsHome, sortBy, weatherByResort, forecastByResort]);
 
   if (loading) {
     return (
@@ -282,7 +282,7 @@ export default function HomePage() {
         })}
       </Stack>
 
-      {(!data?.resorts || data.resorts.length === 0) && (
+      {(!data?.resortsHome || data.resortsHome.length === 0) && (
         <Center mt="xl">
           <Stack align="center" gap="xs">
             <Text c="dimmed" size="xl">No resort data available</Text>

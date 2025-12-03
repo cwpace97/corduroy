@@ -39,6 +39,15 @@ export interface RecentlyOpenedItem {
   dateOpened: string;
 }
 
+export interface RunsByDifficulty {
+  green: number;
+  blue: number;
+  black: number;
+  doubleBlack: number;
+  terrainPark: number;
+  other: number;
+}
+
 export interface Resort {
   location: string;
   totalLifts: number;
@@ -46,8 +55,9 @@ export interface Resort {
   totalRuns: number;
   openRuns: number;
   lastUpdated: string;
-  lifts: Lift[];
-  runs: Run[];
+  lifts?: Lift[];  // Optional - not included in home page query
+  runs?: Run[];    // Optional - not included in home page query
+  runsByDifficulty?: RunsByDifficulty;
   liftsHistory: HistoryPoint[];
   runsHistory: HistoryPoint[];
   recentlyOpenedLifts: RecentlyOpenedItem[];

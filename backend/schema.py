@@ -82,6 +82,24 @@ class ResortSummary:
 
 
 @strawberry.type
+class ResortHomeSummary:
+    """Pre-aggregated summary for home page (no individual lifts/runs)"""
+    location: str
+    total_lifts: int
+    open_lifts: int
+    closed_lifts: int
+    total_runs: int
+    open_runs: int
+    closed_runs: int
+    runs_by_difficulty: RunsByDifficulty
+    last_updated: str
+    lifts_history: List[HistoryDataPoint]
+    runs_history: List[HistoryDataPoint]
+    recently_opened_lifts: List[RecentlyOpened]
+    recently_opened_runs: List[RecentlyOpened]
+
+
+@strawberry.type
 class GlobalRecentlyOpened:
     """Global recently opened lifts and runs across all resorts"""
     lifts: List[RecentlyOpenedWithLocation]
@@ -212,9 +230,15 @@ class Query:
     
     @strawberry.field
     def resorts(self) -> List[ResortSummary]:
-        """Get summary data for all ski resorts"""
+        """Get summary data for all ski resorts (includes individual lifts/runs)"""
         from .resolvers import get_all_resorts
         return get_all_resorts()
+    
+    @strawberry.field
+    def resorts_home(self) -> List[ResortHomeSummary]:
+        """Get pre-aggregated summary data for home page (no individual lifts/runs)"""
+        from .resolvers import get_all_resorts_home
+        return get_all_resorts_home()
     
     @strawberry.field
     def resort(self, location: str) -> Optional[ResortSummary]:
