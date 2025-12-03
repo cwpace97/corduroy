@@ -15,20 +15,78 @@ import {
 } from '@mantine/core';
 import { IconAlertCircle, IconSnowflake } from '@tabler/icons-react';
 import { useState, useMemo } from 'react';
-import { GET_ALL_RESORT_WEATHER } from '@/graphql/queries';
-import { WeatherCard, ResortWeatherData } from '@/components/WeatherCard/WeatherCard';
+import { GET_ALL_RESORT_WEATHER, GET_ALL_RESORT_FORECASTS } from '@/graphql/queries';
+import { WeatherCard, ResortWeatherData, ResortForecastData, DailyWeatherData } from '@/components/WeatherCard/WeatherCard';
 
 interface GetAllResortWeatherData {
   allResortWeather: ResortWeatherData[];
 }
 
-type SortOption = 'name' | 'snow' | 'conditions';
+interface GetAllResortForecastsData {
+  allResortForecasts: ResortForecastData[];
+}
+
+type SortOption = 'name' | 'depth' | 'recent' | 'forecast';
+
+// Helper to calculate recent snowfall from daily data
+const calculateRecentSnowfall = (dailyData: DailyWeatherData[]): number => {
+  if (!dailyData || dailyData.length < 2) return 0;
+  
+  const sortedData = [...dailyData].sort((a, b) => a.date.localeCompare(b.date));
+  let totalSnowfall = 0;
+  
+  for (let i = 1; i < sortedData.length; i++) {
+    const prevDepth = sortedData[i - 1].snowDepthAvgIn;
+    const currDepth = sortedData[i].snowDepthAvgIn;
+    if (prevDepth !== null && currDepth !== null) {
+      const change = currDepth - prevDepth;
+      if (change > 0) {
+        totalSnowfall += change;
+      }
+    }
+  }
+  
+  return totalSnowfall;
+};
+
+// Helper to calculate forecast snow total
+const calculateForecastSnow = (forecast: ResortForecastData | undefined): number => {
+  if (!forecast?.forecasts) return 0;
+  
+  // Group by date and sum snow amounts
+  const snowByDate = new Map<string, number>();
+  forecast.forecasts.forEach(f => {
+    if (f.snowAmountIn !== null && f.snowAmountIn > 0) {
+      const dateKey = f.validTime.split('T')[0].split(' ')[0];
+      const existing = snowByDate.get(dateKey) || 0;
+      // Take the max for each date (in case of multiple sources)
+      snowByDate.set(dateKey, Math.max(existing, f.snowAmountIn));
+    }
+  });
+  
+  return Array.from(snowByDate.values()).reduce((a, b) => a + b, 0);
+};
 
 export default function WeatherPage() {
   const { loading, error, data } = useQuery<GetAllResortWeatherData>(GET_ALL_RESORT_WEATHER, {
     variables: { days: 7 },
   });
-  const [sortBy, setSortBy] = useState<SortOption>('snow');
+  const { loading: forecastsLoading, error: forecastsError, data: forecastsData } = useQuery<GetAllResortForecastsData>(
+    GET_ALL_RESORT_FORECASTS,
+    {
+      variables: { days: 7 },
+    }
+  );
+  const [sortBy, setSortBy] = useState<SortOption>('forecast');
+
+  // Create a map of resort name to forecast data for easy lookup
+  const forecastMap = useMemo(() => {
+    const map = new Map<string, ResortForecastData>();
+    forecastsData?.allResortForecasts?.forEach(forecast => {
+      map.set(forecast.resortName, forecast);
+    });
+    return map;
+  }, [forecastsData?.allResortForecasts]);
 
   const sortedWeather = useMemo(() => {
     if (!data?.allResortWeather) return [];
@@ -38,25 +96,30 @@ export default function WeatherPage() {
     switch (sortBy) {
       case 'name':
         return weatherData.sort((a, b) => a.resortName.localeCompare(b.resortName));
-      case 'snow':
+      case 'depth':
         return weatherData.sort((a, b) => {
           const aSnow = a.trend.latestSnowDepthIn ?? 0;
           const bSnow = b.trend.latestSnowDepthIn ?? 0;
           return bSnow - aSnow;
         });
-      case 'conditions':
-        const conditionOrder = { excellent: 0, good: 1, fair: 2, poor: 3, unknown: 4 };
+      case 'recent':
         return weatherData.sort((a, b) => {
-          const aOrder = conditionOrder[a.trend.snowConditions as keyof typeof conditionOrder] ?? 4;
-          const bOrder = conditionOrder[b.trend.snowConditions as keyof typeof conditionOrder] ?? 4;
-          return aOrder - bOrder;
+          const aRecent = calculateRecentSnowfall(a.dailyData);
+          const bRecent = calculateRecentSnowfall(b.dailyData);
+          return bRecent - aRecent;
+        });
+      case 'forecast':
+        return weatherData.sort((a, b) => {
+          const aForecast = calculateForecastSnow(forecastMap.get(a.resortName));
+          const bForecast = calculateForecastSnow(forecastMap.get(b.resortName));
+          return bForecast - aForecast;
         });
       default:
         return weatherData;
     }
-  }, [data?.allResortWeather, sortBy]);
+  }, [data?.allResortWeather, sortBy, forecastMap]);
 
-  if (loading) {
+  if (loading || forecastsLoading) {
     return (
       <Center h="calc(100vh - 120px)">
         <Stack align="center" gap="md">
@@ -67,7 +130,7 @@ export default function WeatherPage() {
     );
   }
 
-  if (error) {
+  if (error || forecastsError) {
     return (
       <Center h="calc(100vh - 120px)">
         <Alert
@@ -76,7 +139,7 @@ export default function WeatherPage() {
           color="red"
           variant="filled"
         >
-          {error.message}
+          {error?.message || forecastsError?.message || 'Unknown error'}
         </Alert>
       </Center>
     );
@@ -93,7 +156,7 @@ export default function WeatherPage() {
               Weather Conditions
             </Title>
             <Text c="dimmed">
-              7-day weather trends from nearby SNOTEL stations
+              7-day historical + 7-day forecast from SNOTEL & weather services
             </Text>
           </Box>
         </Group>
@@ -104,8 +167,9 @@ export default function WeatherPage() {
             onChange={(value) => setSortBy(value as SortOption)}
             data={[
               { label: 'A-Z', value: 'name' },
-              { label: 'Snow', value: 'snow' },
-              { label: 'Conditions', value: 'conditions' },
+              { label: 'Snow Depth', value: 'depth' },
+              { label: 'Recent Snow', value: 'recent' },
+              { label: 'Forecast Snow', value: 'forecast' },
             ]}
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
@@ -126,11 +190,14 @@ export default function WeatherPage() {
       ) : (
         <Stack gap="md">
           {sortedWeather.map((weather) => (
-            <WeatherCard key={weather.resortName} weather={weather} />
+            <WeatherCard 
+              key={weather.resortName} 
+              weather={weather} 
+              forecast={forecastMap.get(weather.resortName)}
+            />
           ))}
         </Stack>
       )}
     </Container>
   );
 }
-

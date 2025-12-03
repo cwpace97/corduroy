@@ -273,5 +273,30 @@
       "longitude": -107.72657,
       "distance_miles": 7.88
     }
+  },
+  "Monarch": {
+    "Monarch": {
+      "latitude": 38.512454,
+      "longitude": -106.335721,
+      "distance_miles": 0
+    },
+    "701:CO:SNTL": {
+      "name": "Porphyry Creek",
+      "latitude": 38.48864,
+      "longitude": -106.33967,
+      "distance_miles": 1.66
+    },
+    "1100:CO:SNTL": {
+      "name": "Saint Elmo",
+      "latitude": 38.69985,
+      "longitude": -106.36805,
+      "distance_miles": 13.07
+    },
+    "1128:CO:SNTL": {
+      "name": "Sargents Mesa",
+      "latitude": 38.2856,
+      "longitude": -106.37085,
+      "distance_miles": 15.79
+    }
   }
 }

@@ -216,6 +216,23 @@ services:
     profiles:
       - telluride
 
+  # Monarch Scraper using pre-built Seleniarm
+  monarch-scraper:
+    build:
+      context: ..
+      dockerfile: scrapers/Dockerfile
+    container_name: corduroy-monarch-scraper
+    environment:
+      - WEBSITE_URL=https://skimonarch.com/conditions/
+      - DATABASE_URL=${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/app}
+      - SELENIUM_HOST=selenium-hub
+      - SELENIUM_PORT=4444
+    depends_on:
+      - selenium-hub
+    command: ["python3", "scrapers/scraper_monarch.py"]
+    profiles:
+      - monarch
+
   # ARM64 Selenium Hub
   selenium-hub:
     image: seleniarm/hub:latest
@@ -254,4 +271,5 @@ services:
 # docker-compose --profile crestedbutte run crestedbutte-scraper # Runs crested butte scraper with Selenium Grid
 # docker-compose --profile purgatory run purgatory-scraper       # Runs purgatory scraper with Selenium Grid
 # docker-compose --profile telluride run telluride-scraper       # Runs telluride scraper with Selenium Grid
+# docker-compose --profile monarch run monarch-scraper           # Runs monarch scraper with Selenium Grid
 

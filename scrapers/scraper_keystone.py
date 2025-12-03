@@ -123,7 +123,7 @@ class KeystoneScraper(BaseScraper):
             2: 'blue1',
             3: 'black1',
             4: 'black2',
-            5: 'park'
+            5: 'terrainpark'
         }
         return difficulty_map.get(difficulty_level, 'blue1')
     

@@ -7,3 +7,42 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
+/* Desktop: Show horizontal layout for row 1 and row 2 */
+.row1Desktop {
+  display: flex;
+}
+
+.row1Mobile {
+  display: none;
+}
+
+.row2Desktop {
+  display: flex;
+}
+
+.row2Mobile {
+  display: none;
+}
+
+/* Mobile: Stack everything vertically */
+@media (max-width: 768px) {
+  .row1Desktop {
+    display: none !important;
+  }
+
+  .row1Mobile {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+  }
+
+  .row2Desktop {
+    display: none !important;
+  }
+
+  .row2Mobile {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+  }
+}

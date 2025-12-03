@@ -9,7 +9,7 @@ from .schema import (
     ResortSummary, Lift, Run, RunsByDifficulty, HistoryDataPoint, 
     RecentlyOpened, GlobalRecentlyOpened, RecentlyOpenedWithLocation,
     WeatherDataPoint, DailyWeatherSummary, WeatherTrend, ResortWeatherSummary,
-    StationInfo, StationDailyData
+    StationInfo, StationDailyData, ForecastDataPoint, ResortForecast
 )
 
 
@@ -610,4 +610,109 @@ def get_all_resort_weather(days: int = 7) -> List[ResortWeatherSummary]:
             weather_summaries.append(weather)
     
     return weather_summaries
+
+
+def get_resort_forecast(resort_name: str, days: int = 7) -> Optional[ResortForecast]:
+    """Get weather forecast for a specific resort from multiple sources"""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # Normalize resort name for case-insensitive matching
+    resort_name_map = {
+        'arapahoe basin': 'Arapahoe Basin',
+        'a-basin': 'Arapahoe Basin',
+        'copper': 'Copper',
+        'copper mountain': 'Copper',
+        'loveland': 'Loveland',
+        'breckenridge': 'Breckenridge',
+        'breck': 'Breckenridge',
+        'winter park': 'Winter Park',
+        'keystone': 'Keystone',
+        'vail': 'Vail',
+        'crested butte': 'Crested Butte',
+        'steamboat': 'Steamboat',
+        'purgatory': 'Purgatory',
+        'telluride': 'Telluride',
+    }
+    
+    normalized_name = resort_name_map.get(resort_name.lower(), resort_name)
+    
+    # Get forecasts from all sources
+    cursor.execute("""
+        SELECT 
+            source,
+            forecast_time::text as forecast_time,
+            valid_time::text as valid_time,
+            temp_high_f,
+            temp_low_f,
+            snow_amount_in,
+            precip_amount_in,
+            precip_prob_pct,
+            wind_speed_mph,
+            wind_direction_deg,
+            wind_gust_mph,
+            conditions_text,
+            icon_code
+        FROM WEATHER_DATA.weather_forecasts
+        WHERE resort_name = %s
+          AND valid_time >= CURRENT_TIMESTAMP
+          AND valid_time <= CURRENT_TIMESTAMP + INTERVAL '%s days'
+        ORDER BY source, valid_time ASC
+    """, (normalized_name, days))
+    
+    forecast_rows = cursor.fetchall()
+    conn.close()
+    
+    if not forecast_rows:
+        return None
+    
+    forecasts = [
+        ForecastDataPoint(
+            source=row['source'],
+            forecast_time=row['forecast_time'],
+            valid_time=row['valid_time'],
+            temp_high_f=float(row['temp_high_f']) if row['temp_high_f'] is not None else None,
+            temp_low_f=float(row['temp_low_f']) if row['temp_low_f'] is not None else None,
+            snow_amount_in=float(row['snow_amount_in']) if row['snow_amount_in'] is not None else None,
+            precip_amount_in=float(row['precip_amount_in']) if row['precip_amount_in'] is not None else None,
+            precip_prob_pct=int(row['precip_prob_pct']) if row['precip_prob_pct'] is not None else None,
+            wind_speed_mph=float(row['wind_speed_mph']) if row['wind_speed_mph'] is not None else None,
+            wind_direction_deg=int(row['wind_direction_deg']) if row['wind_direction_deg'] is not None else None,
+            wind_gust_mph=float(row['wind_gust_mph']) if row['wind_gust_mph'] is not None else None,
+            conditions_text=row['conditions_text'],
+            icon_code=row['icon_code'],
+        )
+        for row in forecast_rows
+    ]
+    
+    return ResortForecast(
+        resort_name=normalized_name,
+        forecasts=forecasts
+    )
+
+
+def get_all_resort_forecasts(days: int = 7) -> List[ResortForecast]:
+    """Get weather forecasts for all resorts"""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    # Get all unique resort names from forecasts
+    cursor.execute("""
+        SELECT DISTINCT resort_name
+        FROM WEATHER_DATA.weather_forecasts
+        WHERE valid_time >= CURRENT_TIMESTAMP
+        ORDER BY resort_name
+    """)
+    
+    resort_names = [row['resort_name'] for row in cursor.fetchall()]
+    conn.close()
+    
+    # Get forecasts for each resort
+    forecast_summaries = []
+    for resort_name in resort_names:
+        forecast = get_resort_forecast(resort_name, days)
+        if forecast:
+            forecast_summaries.append(forecast)
+    
+    return forecast_summaries
 

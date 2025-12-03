@@ -73,3 +73,15 @@ variable "assign_public_ip" {
   default     = true
 }
 
+variable "forecast_scraper_cpu" {
+  description = "CPU units for forecast scraper task (1024 = 1 vCPU)"
+  type        = number
+  default     = 256 # 0.25 vCPU
+}
+
+variable "forecast_scraper_memory" {
+  description = "Memory in MB for forecast scraper task"
+  type        = number
+  default     = 512 # 512 MB
+}
+

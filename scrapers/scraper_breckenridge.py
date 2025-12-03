@@ -125,7 +125,7 @@ class BreckenridgeScraper(BaseScraper):
                 2: 'blue1',
                 3: 'black1',
                 4: 'black2',
-                5: 'park'
+                5: 'terrainpark'
             }
             return difficulty_map.get(difficulty_level, 'blue1')
         else:
@@ -140,7 +140,7 @@ class BreckenridgeScraper(BaseScraper):
             elif 'black' in difficulty_str or 'advanced' in difficulty_str:
                 return 'black1'
             elif 'park' in difficulty_str or 'terrain' in difficulty_str:
-                return 'park'
+                return 'terrainpark'
             else:
                 return 'blue1'
     

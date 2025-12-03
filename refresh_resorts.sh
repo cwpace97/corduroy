@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Array of scraper profiles
-scrapers=("abasin" "copper" "loveland" "winterpark" "keystone" "breckenridge" "vail" "steamboat" "crestedbutte" "purgatory" "telluride")
-scraper_names=("Arapahoe Basin" "Copper Mountain" "Loveland" "Winter Park" "Keystone" "Breckenridge" "Vail" "Steamboat" "Crested Butte" "Purgatory" "Telluride")
+scrapers=("abasin" "copper" "loveland" "winterpark" "keystone" "breckenridge" "vail" "steamboat" "crestedbutte" "purgatory" "telluride" "monarch")
+scraper_names=("Arapahoe Basin" "Copper Mountain" "Loveland" "Winter Park" "Keystone" "Breckenridge" "Vail" "Steamboat" "Crested Butte" "Purgatory" "Telluride" "Monarch")
 
 # Function to display usage
 usage() {

@@ -39,3 +39,4 @@ infrastructure/*.tfvars
 infrastructure/*.tfstate
 infrastructure/*.tfstate.backup
 infrastructure/.terraform.tfstate.lock.info
+weather/__pycache__/*

@@ -1,39 +1,28 @@
 #!/usr/bin/env python3
 """
-ECS-compatible entrypoint for SNOTEL data collection.
-Runs every 3 hours, fetching hourly data for a 4-hour window.
+ECS-compatible entrypoint for weather forecast collection.
+Runs every 6 hours, fetching forecasts from NWS and Open-Meteo APIs.
 """
 
 import os
 import sys
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Add weather directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from snotel_data_collector import SNOTELDataCollector
+from forecast_collector import ForecastCollector
 
 
-def run_snotel_refresh():
-    """Run SNOTEL data collection for hourly data from the past 4 hours"""
+def run_forecast_refresh():
+    """Run forecast data collection for all resorts"""
     print("=" * 60)
-    print("Starting SNOTEL Weather Data Refresh")
+    print("Starting Weather Forecast Refresh")
     print("=" * 60)
     
-    # Calculate 4-hour window
-    # The SNOTEL API works with dates, so we need to include both today and potentially yesterday
-    # to cover the 4-hour window (e.g., if it's 2 AM, we need yesterday's data too)
-    now = datetime.now()
-    four_hours_ago = now - timedelta(hours=4)
-    
-    # Use the dates that cover our 4-hour window
-    begin_date_str = four_hours_ago.strftime("%Y-%m-%d")
-    end_date_str = now.strftime("%Y-%m-%d")
-    
-    print(f"Duration: HOURLY")
-    print(f"Time Window: {four_hours_ago.strftime('%Y-%m-%d %H:%M')} to {now.strftime('%Y-%m-%d %H:%M')}")
-    print(f"Date Range: {begin_date_str} to {end_date_str}")
+    forecast_time = datetime.now()
+    print(f"Forecast Time: {forecast_time.strftime('%Y-%m-%d %H:%M:%S')}")
     print()
     
     # Get DATABASE_URL from environment (will be injected by ECS from Secrets Manager)
@@ -50,29 +39,32 @@ def run_snotel_refresh():
     os.environ["DATABASE_URL"] = database_url
     
     # Output SQL file path
-    sql_output_file = "/tmp/snotel_import.sql"
+    sql_output_file = "/tmp/forecast_import.sql"
     
     try:
         # Initialize collector
-        collector = SNOTELDataCollector()
+        collector = ForecastCollector()
         
-        # Collect data and generate SQL
-        print("Collecting SNOTEL data from USDA API...")
-        sql = collector.collect_and_generate_sql(
-            begin_date=begin_date_str,
-            end_date=end_date_str,
-            duration="HOURLY",
-            output_file=sql_output_file
-        )
+        # Fetch forecasts from all sources
+        print("Fetching forecasts from NWS and Open-Meteo APIs...")
+        forecasts = collector.fetch_all_forecasts()
         
-        # Count observations
-        obs_count = 0
-        if os.path.exists(sql_output_file):
-            with open(sql_output_file, 'r') as f:
-                content = f.read()
-                obs_count = content.count("INSERT INTO WEATHER_DATA.snotel_observations")
+        if not forecasts:
+            print("⚠️  No forecasts collected")
+            sys.exit(0)
         
-        print(f"✅ Generated SQL with {obs_count} observation records")
+        print(f"✅ Collected {len(forecasts)} forecast records")
+        print()
+        
+        # Generate SQL INSERT statements (schema is handled by init_db.py)
+        print("Generating SQL INSERT statements...")
+        complete_sql = collector.generate_sql_inserts(forecasts)
+        
+        # Write to file
+        with open(sql_output_file, 'w') as f:
+            f.write(complete_sql)
+        
+        print(f"✅ Generated SQL with {len(forecasts)} forecast records")
         print()
         
         # Execute SQL against database
@@ -150,17 +142,17 @@ def run_snotel_refresh():
         
         print()
         print("=" * 60)
-        print("✅ SNOTEL data refresh complete!")
+        print("✅ Weather forecast refresh complete!")
         print("=" * 60)
         print(f"Data imported:")
-        print(f"  - Date Range: {begin_date_str} to {end_date_str}")
-        print(f"  - Duration: HOURLY")
-        print(f"  - Observations: {obs_count} records")
+        print(f"  - Forecast Records: {len(forecasts)}")
+        print(f"  - Forecast Time: {forecast_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"  - Sources: NWS, Open-Meteo")
         
         sys.exit(0)
         
     except Exception as e:
-        print(f"❌ Error during SNOTEL refresh: {str(e)}")
+        print(f"❌ Error during forecast refresh: {str(e)}")
         print("Traceback:")
         import traceback
         traceback.print_exc()
@@ -168,5 +160,5 @@ def run_snotel_refresh():
 
 
 if __name__ == "__main__":
-    run_snotel_refresh()
+    run_forecast_refresh()
 

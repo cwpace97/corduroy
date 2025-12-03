@@ -24,6 +24,7 @@ from scraper_steamboat import handler as scrape_steamboat
 from scraper_crestedbutte import handler as scrape_crestedbutte
 from scraper_purgatory import handler as scrape_purgatory
 from scraper_telluride import handler as scrape_telluride
+from scraper_monarch import handler as scrape_monarch
 
 # Mapping of scraper names to handler functions
 SCRAPERS = [
@@ -38,6 +39,7 @@ SCRAPERS = [
     ("Crested Butte", scrape_crestedbutte),
     ("Purgatory", scrape_purgatory),
     ("Telluride", scrape_telluride),
+    ("Monarch", scrape_monarch),
 ]
 
 

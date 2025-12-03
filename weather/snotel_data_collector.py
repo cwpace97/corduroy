@@ -155,105 +155,6 @@ class SNOTELDataCollector:
         
         return data
     
-    def generate_sql_schema(self) -> str:
-        """Generate SQL statements to create the WEATHER_DATA schema and tables."""
-        sql = """
--- Create WEATHER_DATA schema if not exists
-CREATE SCHEMA IF NOT EXISTS WEATHER_DATA;
-
--- Table for SNOTEL stations
-CREATE TABLE IF NOT EXISTS WEATHER_DATA.snotel_stations (
-    station_triplet VARCHAR(50) PRIMARY KEY,
-    station_name VARCHAR(255),
-    latitude DECIMAL(10, 6),
-    longitude DECIMAL(10, 6),
-    elevation_ft INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Table for resort-station mapping
-CREATE TABLE IF NOT EXISTS WEATHER_DATA.resort_station_mapping (
-    id SERIAL PRIMARY KEY,
-    resort_name VARCHAR(100) NOT NULL,
-    station_triplet VARCHAR(50) NOT NULL REFERENCES WEATHER_DATA.snotel_stations(station_triplet),
-    distance_miles DECIMAL(6, 2),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(resort_name, station_triplet)
-);
-
--- Table for SNOTEL weather observations
-CREATE TABLE IF NOT EXISTS WEATHER_DATA.snotel_observations (
-    id SERIAL PRIMARY KEY,
-    station_triplet VARCHAR(50) NOT NULL REFERENCES WEATHER_DATA.snotel_stations(station_triplet),
-    observation_date DATE NOT NULL,
-    observation_hour INTEGER,  -- NULL for daily data, 0-23 for hourly
-    duration VARCHAR(10) NOT NULL,  -- 'DAILY' or 'HOURLY'
-    
-    -- Snow measurements
-    snow_water_equivalent_in DECIMAL(6, 1),  -- WTEQ
-    snow_depth_in DECIMAL(6, 1),              -- SNWD
-    snow_density_pct DECIMAL(5, 1),           -- SNDN
-    snow_rain_ratio DECIMAL(6, 2),            -- SNRR
-    
-    -- Temperature measurements (Fahrenheit)
-    temp_min_f DECIMAL(5, 1),                 -- TMIN
-    temp_max_f DECIMAL(5, 1),                 -- TMAX
-    temp_avg_f DECIMAL(5, 1),                 -- TAVG
-    temp_observed_f DECIMAL(5, 1),            -- TOBS
-    
-    -- Precipitation
-    precip_accum_in DECIMAL(6, 2),            -- PREC
-    precip_increment_in DECIMAL(6, 2),        -- PRCP
-    
-    -- Wind
-    wind_speed_avg_mph DECIMAL(5, 1),         -- WSPDV
-    wind_speed_max_mph DECIMAL(5, 1),         -- WSPDX
-    wind_direction_avg_deg INTEGER,           -- WDIRV
-    
-    -- Humidity
-    relative_humidity_avg_pct DECIMAL(5, 1),  -- RHUMV
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(station_triplet, observation_date, observation_hour, duration)
-);
-
--- Index for efficient resort-based queries
-CREATE INDEX IF NOT EXISTS idx_snotel_obs_date 
-    ON WEATHER_DATA.snotel_observations(observation_date);
-CREATE INDEX IF NOT EXISTS idx_snotel_obs_station_date 
-    ON WEATHER_DATA.snotel_observations(station_triplet, observation_date);
-
--- View to easily query weather data by resort
-CREATE OR REPLACE VIEW WEATHER_DATA.v_resort_weather AS
-SELECT 
-    rsm.resort_name,
-    rsm.distance_miles,
-    ss.station_name,
-    ss.station_triplet,
-    ss.elevation_ft,
-    so.observation_date,
-    so.observation_hour,
-    so.duration,
-    so.snow_water_equivalent_in,
-    so.snow_depth_in,
-    so.snow_density_pct,
-    so.snow_rain_ratio,
-    so.temp_min_f,
-    so.temp_max_f,
-    so.temp_avg_f,
-    so.temp_observed_f,
-    so.precip_accum_in,
-    so.precip_increment_in,
-    so.wind_speed_avg_mph,
-    so.wind_speed_max_mph,
-    so.wind_direction_avg_deg,
-    so.relative_humidity_avg_pct
-FROM WEATHER_DATA.resort_station_mapping rsm
-JOIN WEATHER_DATA.snotel_stations ss ON rsm.station_triplet = ss.station_triplet
-JOIN WEATHER_DATA.snotel_observations so ON ss.station_triplet = so.station_triplet;
-"""
-        return sql
-    
     def generate_station_inserts(self) -> str:
         """Generate SQL INSERT statements for SNOTEL stations."""
         inserts = []
@@ -425,18 +326,13 @@ ON CONFLICT (station_triplet, observation_date, observation_hour, duration) DO N
         # Fetch data from API
         api_data = self.fetch_snotel_data(begin_date, end_date, duration)
         
-        # Generate all SQL components
+        # Generate all SQL components (INSERT statements only - schema is handled by init_db.py)
         sql_parts = [
             "-- SNOTEL Data Import Script",
             f"-- Generated: {datetime.now().isoformat()}",
             f"-- Date Range: {begin_date} to {end_date}",
             f"-- Duration: {duration}",
             f"-- Stations: {len(self.unique_stations)}",
-            "",
-            "-- ============================================",
-            "-- SCHEMA AND TABLE CREATION",
-            "-- ============================================",
-            self.generate_sql_schema(),
             "",
             "-- ============================================",
             "-- SNOTEL STATION DATA",

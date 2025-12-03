@@ -192,3 +192,49 @@ export const GET_RESORT_WEATHER = gql`
   }
 `;
 
+export const GET_RESORT_FORECAST = gql`
+  query GetResortForecast($resortName: String!, $days: Int) {
+    resortForecast(resortName: $resortName, days: $days) {
+      resortName
+      forecasts {
+        source
+        forecastTime
+        validTime
+        tempHighF
+        tempLowF
+        snowAmountIn
+        precipAmountIn
+        precipProbPct
+        windSpeedMph
+        windDirectionDeg
+        windGustMph
+        conditionsText
+        iconCode
+      }
+    }
+  }
+`;
+
+export const GET_ALL_RESORT_FORECASTS = gql`
+  query GetAllResortForecasts($days: Int) {
+    allResortForecasts(days: $days) {
+      resortName
+      forecasts {
+        source
+        forecastTime
+        validTime
+        tempHighF
+        tempLowF
+        snowAmountIn
+        precipAmountIn
+        precipProbPct
+        windSpeedMph
+        windDirectionDeg
+        windGustMph
+        conditionsText
+        iconCode
+      }
+    }
+  }
+`;
+

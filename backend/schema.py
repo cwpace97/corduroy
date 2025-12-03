@@ -158,6 +158,31 @@ class ResortWeatherSummary:
 
 
 @strawberry.type
+class ForecastDataPoint:
+    """Single forecast data point from a source"""
+    source: str  # 'NWS' or 'OPEN_METEO'
+    forecast_time: str  # When forecast was generated
+    valid_time: str  # When forecast is valid for
+    temp_high_f: Optional[float] = None
+    temp_low_f: Optional[float] = None
+    snow_amount_in: Optional[float] = None
+    precip_amount_in: Optional[float] = None
+    precip_prob_pct: Optional[int] = None
+    wind_speed_mph: Optional[float] = None
+    wind_direction_deg: Optional[int] = None
+    wind_gust_mph: Optional[float] = None
+    conditions_text: Optional[str] = None
+    icon_code: Optional[str] = None
+
+
+@strawberry.type
+class ResortForecast:
+    """Weather forecast for a resort with multiple sources"""
+    resort_name: str
+    forecasts: List[ForecastDataPoint]  # Forecasts from all sources
+
+
+@strawberry.type
 class Query:
     """GraphQL query root"""
     
@@ -190,4 +215,16 @@ class Query:
         """Get weather summaries for all resorts"""
         from .resolvers import get_all_resort_weather
         return get_all_resort_weather(days)
+    
+    @strawberry.field
+    def resort_forecast(self, resort_name: str, days: int = 7) -> Optional[ResortForecast]:
+        """Get weather forecast for a specific resort from multiple sources"""
+        from .resolvers import get_resort_forecast
+        return get_resort_forecast(resort_name, days)
+    
+    @strawberry.field
+    def all_resort_forecasts(self, days: int = 7) -> List[ResortForecast]:
+        """Get weather forecasts for all resorts from multiple sources"""
+        from .resolvers import get_all_resort_forecasts
+        return get_all_resort_forecasts(days)
 

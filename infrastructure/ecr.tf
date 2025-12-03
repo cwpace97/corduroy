@@ -70,3 +70,39 @@ resource "aws_ecr_lifecycle_policy" "snotel" {
   })
 }
 
+# ECR Repository for Forecast Scraper
+resource "aws_ecr_repository" "forecast" {
+  name                 = "${var.project_name}-forecast"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+
+  encryption_configuration {
+    encryption_type = "AES256"
+  }
+}
+
+# ECR Lifecycle Policy for Forecast Scraper
+resource "aws_ecr_lifecycle_policy" "forecast" {
+  repository = aws_ecr_repository.forecast.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep last 10 images"
+        selection = {
+          tagStatus     = "any"
+          countType     = "imageCountMoreThan"
+          countNumber   = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+}
+

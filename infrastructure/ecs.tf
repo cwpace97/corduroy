@@ -32,6 +32,16 @@ resource "aws_cloudwatch_log_group" "snotel" {
   }
 }
 
+# CloudWatch Log Group for Forecast Scraper
+resource "aws_cloudwatch_log_group" "forecast" {
+  name              = "/ecs/${var.project_name}/forecast"
+  retention_in_days = 7
+
+  tags = {
+    Name = "${var.project_name}-forecast-logs"
+  }
+}
+
 # ECS Task Definition for Resort Scraper
 resource "aws_ecs_task_definition" "resort_scraper" {
   family                   = "${var.project_name}-resort-scraper"
@@ -119,6 +129,46 @@ resource "aws_ecs_task_definition" "snotel" {
 
   tags = {
     Name = "${var.project_name}-snotel-task"
+  }
+}
+
+# ECS Task Definition for Forecast Scraper
+resource "aws_ecs_task_definition" "forecast" {
+  family                   = "${var.project_name}-forecast"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = var.forecast_scraper_cpu
+  memory                   = var.forecast_scraper_memory
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name  = "forecast-scraper"
+      image = "${aws_ecr_repository.forecast.repository_url}:latest"
+
+      essential = true
+
+      secrets = [
+        {
+          name      = "DATABASE_URL"
+          valueFrom = local.database_secret_arn
+        }
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.forecast.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "ecs"
+        }
+      }
+    }
+  ])
+
+  tags = {
+    Name = "${var.project_name}-forecast-task"
   }
 }
 
