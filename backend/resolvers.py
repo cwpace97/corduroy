@@ -472,7 +472,7 @@ def get_resort_weather(resort_name: str, days: int = 7) -> Optional[ResortWeathe
             AVG(wind_direction_avg_deg) as wind_direction_avg_deg
         FROM WEATHER_DATA.snotel_observations
         WHERE station_triplet IN %s
-          AND observation_date >= CURRENT_DATE - INTERVAL '%s days'
+          AND observation_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Denver')::date - INTERVAL '%s days'
         GROUP BY station_triplet, observation_date
         ORDER BY observation_date ASC, station_triplet ASC
     """, (triplets_tuple, days))
@@ -554,7 +554,7 @@ def get_resort_weather(resort_name: str, days: int = 7) -> Optional[ResortWeathe
             wind_speed_max_mph
         FROM WEATHER_DATA.snotel_observations
         WHERE station_triplet IN %s
-          AND observation_date >= CURRENT_DATE - INTERVAL '%s days'
+          AND observation_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Denver')::date - INTERVAL '%s days'
         ORDER BY observation_date ASC, observation_hour ASC, station_triplet ASC
     """, (triplets_tuple, days))
     
@@ -605,7 +605,7 @@ def get_resort_weather(resort_name: str, days: int = 7) -> Optional[ResortWeathe
             snowfall_total_in
         FROM WEATHER_DATA.historical_weather_daily
         WHERE resort_name = %s
-          AND observation_date >= CURRENT_DATE - INTERVAL '%s days'
+          AND observation_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Denver')::date - INTERVAL '%s days'
         ORDER BY observation_date ASC
     """, (normalized_name, days))
     
@@ -755,7 +755,7 @@ def get_resort_forecast(resort_name: str, days: int = 7) -> Optional[ResortForec
     
     normalized_name = resort_name_map.get(resort_name.lower(), resort_name)
     
-    # Get forecasts from all sources (use CURRENT_DATE to include today's forecast)
+    # Get forecasts from all sources (use Mountain Time to include today's forecast)
     cursor.execute("""
         SELECT 
             source,
@@ -773,8 +773,8 @@ def get_resort_forecast(resort_name: str, days: int = 7) -> Optional[ResortForec
             icon_code
         FROM WEATHER_DATA.weather_forecasts
         WHERE resort_name = %s
-          AND valid_time >= CURRENT_DATE
-          AND valid_time <= CURRENT_DATE + INTERVAL '%s days'
+          AND valid_time >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Denver')::date
+          AND valid_time <= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Denver')::date + INTERVAL '%s days'
         ORDER BY source, valid_time ASC
     """, (normalized_name, days))
     
@@ -814,11 +814,11 @@ def get_all_resort_forecasts(days: int = 7) -> List[ResortForecast]:
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
-    # Get all unique resort names from forecasts (use CURRENT_DATE to include today)
+    # Get all unique resort names from forecasts (use Mountain Time to include today)
     cursor.execute("""
         SELECT DISTINCT resort_name
         FROM WEATHER_DATA.weather_forecasts
-        WHERE valid_time >= CURRENT_DATE
+        WHERE valid_time >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Denver')::date
         ORDER BY resort_name
     """)
     

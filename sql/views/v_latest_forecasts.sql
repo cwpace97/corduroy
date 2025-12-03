@@ -18,6 +18,6 @@ SELECT DISTINCT ON (resort_name, source)
     icon_code,
     created_at
 FROM WEATHER_DATA.weather_forecasts
-WHERE valid_time >= CURRENT_TIMESTAMP
+WHERE valid_time >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Denver')::date
 ORDER BY resort_name, source, forecast_time DESC;
 
