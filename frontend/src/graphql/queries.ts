@@ -75,6 +75,22 @@ export const GET_RESORTS = gql`
         tempMinF
         tempMaxF
         precipTotalIn
+        snowfallTotalIn
+      }
+      historicalWeather {
+        date
+        tempMinF
+        tempMaxF
+        snowfallTotalIn
+      }
+    }
+    allResortForecasts(days: 7) {
+      resortName
+      forecasts {
+        validTime
+        tempHighF
+        tempLowF
+        snowAmountIn
       }
     }
   }
@@ -124,6 +140,7 @@ export const GET_ALL_RESORT_WEATHER = gql`
         tempMinF
         tempMaxF
         precipTotalIn
+        snowfallTotalIn
         windSpeedAvgMph
         windDirectionAvgDeg
         stationData {
@@ -133,14 +150,13 @@ export const GET_ALL_RESORT_WEATHER = gql`
           snowDepthAvgIn
         }
       }
-      hourlyData {
+      historicalWeather {
         date
-        hour
-        snowDepthIn
-        snowWaterEquivalentIn
-        tempObservedF
-        precipAccumIn
-        windSpeedAvgMph
+        tempMinF
+        tempMaxF
+        tempAvgF
+        precipTotalIn
+        snowfallTotalIn
       }
     }
   }
@@ -170,6 +186,7 @@ export const GET_RESORT_WEATHER = gql`
         tempMinF
         tempMaxF
         precipTotalIn
+        snowfallTotalIn
         windSpeedAvgMph
         windDirectionAvgDeg
         stationData {
@@ -179,14 +196,13 @@ export const GET_RESORT_WEATHER = gql`
           snowDepthAvgIn
         }
       }
-      hourlyData {
+      historicalWeather {
         date
-        hour
-        snowDepthIn
-        snowWaterEquivalentIn
-        tempObservedF
-        precipAccumIn
-        windSpeedAvgMph
+        tempMinF
+        tempMaxF
+        tempAvgF
+        precipTotalIn
+        snowfallTotalIn
       }
     }
   }

@@ -14,6 +14,10 @@ resource "aws_iam_role" "ecs_task_execution" {
       }
     ]
   })
+
+  tags = {
+    Name = "${var.project_name}-ecs-task-execution-role"
+  }
 }
 
 # Attach AWS managed policy for ECS task execution
@@ -23,8 +27,8 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution" {
 }
 
 # IAM Policy for accessing Secrets Manager
-resource "aws_iam_role_policy" "secrets_access" {
-  name = "${var.project_name}-secrets-access"
+resource "aws_iam_role_policy" "ecs_secrets_access" {
+  name = "${var.project_name}-ecs-secrets-access"
   role = aws_iam_role.ecs_task_execution.id
 
   policy = jsonencode({
@@ -60,6 +64,10 @@ resource "aws_iam_role" "ecs_task" {
       }
     ]
   })
+
+  tags = {
+    Name = "${var.project_name}-ecs-task-role"
+  }
 }
 
 # CloudWatch Logs permissions for task role (if needed for application logging)
@@ -83,3 +91,4 @@ resource "aws_iam_role_policy" "ecs_task_logs" {
   })
 }
 
+# IAM roles for Lambda functions are defined in lambda.tf

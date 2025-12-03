@@ -50,8 +50,6 @@ export interface ForecastCardProps {
 
 const getSourceColor = (source: string): string => {
   switch (source) {
-    case 'NWS':
-      return 'blue';
     case 'OPEN_METEO':
       return 'cyan';
     default:
@@ -61,8 +59,6 @@ const getSourceColor = (source: string): string => {
 
 const getSourceLabel = (source: string): string => {
   switch (source) {
-    case 'NWS':
-      return 'National Weather Service';
     case 'OPEN_METEO':
       return 'Open-Meteo';
     default:

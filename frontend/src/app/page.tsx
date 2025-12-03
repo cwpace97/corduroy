@@ -25,23 +25,44 @@ interface StationInfo {
   distanceMiles: number;
 }
 
+interface HistoricalWeatherData {
+  date: string;
+  tempMinF: number | null;
+  tempMaxF: number | null;
+  snowfallTotalIn: number | null;
+}
+
 interface ResortWeatherSummary {
   resortName: string;
   stations: StationInfo[];
   trend: WeatherTrend;
   dailyData: DailyData[];
+  historicalWeather: HistoricalWeatherData[];
+}
+
+interface ForecastDataPoint {
+  validTime: string;
+  tempHighF: number | null;
+  tempLowF: number | null;
+  snowAmountIn: number | null;
+}
+
+interface ResortForecastSummary {
+  resortName: string;
+  forecasts: ForecastDataPoint[];
 }
 
 interface GetResortsData {
   resorts: Resort[];
   allResortWeather: ResortWeatherSummary[];
+  allResortForecasts: ResortForecastSummary[];
 }
 
-type SortOption = 'name' | 'snow' | 'conditions' | 'lifts' | 'runs';
+type SortOption = 'name' | 'baseDepth' | 'recentSnow' | 'forecastSnow' | 'lifts' | 'runs';
 
 export default function HomePage() {
   const { loading, error, data } = useQuery<GetResortsData>(GET_RESORTS);
-  const [sortBy, setSortBy] = useState<SortOption>('conditions');
+  const [sortBy, setSortBy] = useState<SortOption>('forecastSnow');
 
   // Normalize a resort name by removing spaces and converting to lowercase
   // This allows matching "arapahoebasin" with "Arapahoe Basin"
@@ -63,11 +84,31 @@ export default function HomePage() {
     return map;
   }, [data?.allResortWeather]);
 
+  // Create a map of resort name to forecast data for quick lookup
+  const forecastByResort = useMemo(() => {
+    const map = new Map<string, ResortForecastSummary>();
+    if (data?.allResortForecasts) {
+      for (const forecast of data.allResortForecasts) {
+        const resortName = forecast.resortName;
+        map.set(resortName.toLowerCase(), forecast);
+        map.set(normalizeResortName(resortName), forecast);
+      }
+    }
+    return map;
+  }, [data?.allResortForecasts]);
+
   const getWeatherData = (location: string): ResortWeatherSummary | null => {
     // Try exact match, lowercase, then normalized (no spaces)
     return weatherByResort.get(location) 
       || weatherByResort.get(location.toLowerCase()) 
       || weatherByResort.get(normalizeResortName(location)) 
+      || null;
+  };
+
+  const getForecastData = (location: string): ResortForecastSummary | null => {
+    return forecastByResort.get(location) 
+      || forecastByResort.get(location.toLowerCase()) 
+      || forecastByResort.get(normalizeResortName(location)) 
       || null;
   };
 
@@ -77,25 +118,64 @@ export default function HomePage() {
     
     const resorts = [...data.resorts];
     
+    // Helper to calculate 7-day forecast snow for a resort (inline to capture closure)
+    const calcForecastSnow = (location: string): number => {
+      const forecast = forecastByResort.get(location) 
+        || forecastByResort.get(location.toLowerCase()) 
+        || forecastByResort.get(normalizeResortName(location));
+      if (!forecast?.forecasts) return 0;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const sevenDaysFromNow = new Date(today);
+      sevenDaysFromNow.setDate(today.getDate() + 7);
+      
+      return forecast.forecasts
+        .filter(f => {
+          const forecastDate = new Date(f.validTime.split('T')[0] + 'T00:00:00');
+          return forecastDate >= today && forecastDate < sevenDaysFromNow;
+        })
+        .reduce((sum, f) => sum + (f.snowAmountIn ?? 0), 0);
+    };
+
+    // Helper to calculate 7-day historical snowfall for a resort (inline to capture closure)
+    const calcHistoricalSnow = (location: string): number => {
+      const weather = weatherByResort.get(location) 
+        || weatherByResort.get(location.toLowerCase()) 
+        || weatherByResort.get(normalizeResortName(location));
+      if (!weather?.historicalWeather) return 0;
+      
+      return weather.historicalWeather
+        .filter(h => h.snowfallTotalIn !== null && h.snowfallTotalIn > 0)
+        .reduce((sum, h) => sum + (h.snowfallTotalIn ?? 0), 0);
+    };
+    
     switch (sortBy) {
       case 'name':
         return resorts.sort((a, b) => a.location.localeCompare(b.location));
-      case 'snow':
+      case 'baseDepth':
         return resorts.sort((a, b) => {
-          const aWeather = getWeatherData(a.location);
-          const bWeather = getWeatherData(b.location);
-          const aSnow = aWeather?.trend.latestSnowDepthIn ?? 0;
-          const bSnow = bWeather?.trend.latestSnowDepthIn ?? 0;
+          const aWeather = weatherByResort.get(a.location) 
+            || weatherByResort.get(a.location.toLowerCase()) 
+            || weatherByResort.get(normalizeResortName(a.location));
+          const bWeather = weatherByResort.get(b.location) 
+            || weatherByResort.get(b.location.toLowerCase()) 
+            || weatherByResort.get(normalizeResortName(b.location));
+          const aDepth = aWeather?.trend.latestSnowDepthIn ?? 0;
+          const bDepth = bWeather?.trend.latestSnowDepthIn ?? 0;
+          return bDepth - aDepth;
+        });
+      case 'recentSnow':
+        return resorts.sort((a, b) => {
+          const aSnow = calcHistoricalSnow(a.location);
+          const bSnow = calcHistoricalSnow(b.location);
           return bSnow - aSnow;
         });
-      case 'conditions':
-        const conditionOrder = { excellent: 0, good: 1, fair: 2, poor: 3, unknown: 4 };
+      case 'forecastSnow':
         return resorts.sort((a, b) => {
-          const aWeather = getWeatherData(a.location);
-          const bWeather = getWeatherData(b.location);
-          const aOrder = conditionOrder[aWeather?.trend.snowConditions as keyof typeof conditionOrder] ?? 4;
-          const bOrder = conditionOrder[bWeather?.trend.snowConditions as keyof typeof conditionOrder] ?? 4;
-          return aOrder - bOrder;
+          const aSnow = calcForecastSnow(a.location);
+          const bSnow = calcForecastSnow(b.location);
+          return bSnow - aSnow;
         });
       case 'lifts':
         return resorts.sort((a, b) => b.openLifts - a.openLifts);
@@ -104,7 +184,7 @@ export default function HomePage() {
       default:
         return resorts;
     }
-  }, [data?.resorts, sortBy, weatherByResort]);
+  }, [data?.resorts, sortBy, weatherByResort, forecastByResort]);
 
   if (loading) {
     return (
@@ -154,8 +234,9 @@ export default function HomePage() {
               { label: 'A-Z', value: 'name' },
               { label: 'Runs', value: 'runs' },
               { label: 'Lifts', value: 'lifts' },
-              { label: 'Snow', value: 'snow' },
-              { label: 'Conditions', value: 'conditions' },
+              { label: 'Base Depth', value: 'baseDepth' },
+              { label: 'Recent Snow', value: 'recentSnow' },
+              { label: 'Forecasted Snow', value: 'forecastSnow' },
             ]}
             style={{
               background: 'rgba(255, 255, 255, 0.05)',
@@ -168,12 +249,15 @@ export default function HomePage() {
       <Stack gap="sm">
         {sortedResorts.map((resort) => {
           const weatherData = getWeatherData(resort.location);
+          const forecastData = getForecastData(resort.location);
           return (
             <ResortCard 
               key={resort.location} 
               resort={resort} 
               weatherTrend={weatherData?.trend ?? null}
               dailyData={weatherData?.dailyData}
+              historicalWeather={weatherData?.historicalWeather}
+              forecasts={forecastData?.forecasts}
             />
           );
         })}

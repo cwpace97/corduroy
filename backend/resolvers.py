@@ -9,7 +9,8 @@ from .schema import (
     ResortSummary, Lift, Run, RunsByDifficulty, HistoryDataPoint, 
     RecentlyOpened, GlobalRecentlyOpened, RecentlyOpenedWithLocation,
     WeatherDataPoint, DailyWeatherSummary, WeatherTrend, ResortWeatherSummary,
-    StationInfo, StationDailyData, ForecastDataPoint, ResortForecast
+    StationInfo, StationDailyData, ForecastDataPoint, ResortForecast,
+    HourlyTemperaturePoint, DailyHistoricalWeather
 )
 
 
@@ -515,6 +516,43 @@ def get_resort_weather(resort_name: str, days: int = 7) -> Optional[ResortWeathe
             wind_speed_max_mph=weighted_avg_hourly('wind_speed_max_mph'),
         ))
     
+    # Get daily aggregated historical weather from the view (much smaller response)
+    cursor.execute("""
+        SELECT 
+            observation_date::text as date,
+            temp_min_f,
+            temp_max_f,
+            temp_avg_f,
+            precip_total_in,
+            snowfall_total_in
+        FROM WEATHER_DATA.historical_weather_daily
+        WHERE resort_name = %s
+          AND observation_date >= CURRENT_DATE - INTERVAL '%s days'
+        ORDER BY observation_date ASC
+    """, (normalized_name, days))
+    
+    daily_weather_rows = cursor.fetchall()
+    historical_weather = [
+        DailyHistoricalWeather(
+            date=row['date'],
+            temp_min_f=float(row['temp_min_f']) if row['temp_min_f'] is not None else None,
+            temp_max_f=float(row['temp_max_f']) if row['temp_max_f'] is not None else None,
+            temp_avg_f=float(row['temp_avg_f']) if row['temp_avg_f'] is not None else None,
+            precip_total_in=float(row['precip_total_in']) if row['precip_total_in'] is not None else None,
+            snowfall_total_in=float(row['snowfall_total_in']) if row['snowfall_total_in'] is not None else None,
+        )
+        for row in daily_weather_rows
+    ]
+    
+    # Keep hourly_temperature empty for backward compatibility (deprecated)
+    hourly_temperature: List[HourlyTemperaturePoint] = []
+    
+    # Update daily_data with snowfall totals from historical_weather
+    daily_snowfall = {row['date']: float(row['snowfall_total_in']) if row['snowfall_total_in'] else 0 for row in daily_weather_rows}
+    for d in daily_data:
+        if d.date in daily_snowfall:
+            d.snowfall_total_in = round(daily_snowfall[d.date], 2)
+    
     # Calculate trend based on weighted daily data
     trend = _calculate_weather_trend(daily_data, hourly_data)
     
@@ -526,6 +564,8 @@ def get_resort_weather(resort_name: str, days: int = 7) -> Optional[ResortWeathe
         trend=trend,
         daily_data=daily_data,
         hourly_data=hourly_data,
+        hourly_temperature=hourly_temperature,
+        historical_weather=historical_weather,
     )
 
 
