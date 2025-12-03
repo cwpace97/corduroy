@@ -110,6 +110,8 @@ jobs:
 
       - name: Build frontend
         working-directory: frontend
+        env:
+          NEXT_PUBLIC_GRAPHQL_URL: https://tracks.ski/graphql
         run: yarn build
 
       - name: Setup SSH key
