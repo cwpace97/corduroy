@@ -11,13 +11,12 @@ import {
   Loader,
   Alert,
   Stack,
-  Button,
   Group,
   Badge,
-  Anchor,
+  Chip,
+  Box,
 } from '@mantine/core';
-import { IconArrowLeft, IconAlertCircle, IconArrowUp, IconArrowDown } from '@tabler/icons-react';
-import Link from 'next/link';
+import { IconAlertCircle } from '@tabler/icons-react';
 import { GET_RESORTS_SUMMARY } from '@/graphql/queries';
 
 type SortType = 'name' | 'liftsOpen' | 'liftsOpenPercent' | 'runsOpen' | 'runsOpenPercent' | null;
@@ -76,21 +75,6 @@ export default function DetailsPage() {
     );
   }
 
-  const handleSort = (type: SortType) => {
-    if (sortBy === type) {
-      if (sortDirection === 'asc') {
-        setSortDirection('desc');
-      } else {
-        setSortBy(null);
-        setSortDirection('asc');
-      }
-    } else {
-      setSortBy(type);
-      const initialDirection = type === 'name' ? 'asc' : 'desc';
-      setSortDirection(initialDirection);
-    }
-  };
-
   const getSortedResorts = (): Resort[] => {
     if (!data?.resorts) return [];
     
@@ -129,9 +113,26 @@ export default function DetailsPage() {
     });
   };
 
-  const getSortIcon = (type: SortType) => {
-    if (sortBy !== type) return null;
-    return sortDirection === 'asc' ? <IconArrowUp size={14} /> : <IconArrowDown size={14} />;
+  const getSortLabel = (type: SortType, label: string) => {
+    if (sortBy !== type) return label;
+    const icon = sortDirection === 'asc' ? ' ↑' : ' ↓';
+    return label + icon;
+  };
+
+  const handleChipChange = (value: string) => {
+    const type = value as SortType;
+    if (sortBy === type) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        setSortBy(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortBy(type);
+      const initialDirection = type === 'name' ? 'asc' : 'desc';
+      setSortDirection(initialDirection);
+    }
   };
 
   const rows = getSortedResorts().map((resort) => (
@@ -164,7 +165,7 @@ export default function DetailsPage() {
   ));
 
   return (
-    <Container size="xl" py="xl">
+    <Container size="xl" px={{ base: 8, sm: 32 }} py="xl">
       <Stack gap="lg">
 
         <div>
@@ -176,48 +177,53 @@ export default function DetailsPage() {
           </Text>
         </div>
 
-        <Group gap="xs">
-          <Button
-            variant={sortBy === 'name' ? 'filled' : 'default'}
-            onClick={() => handleSort('name')}
-            rightSection={getSortIcon('name')}
-            size="sm"
-          >
-            Sort by Name
-          </Button>
-          <Button
-            variant={sortBy === 'liftsOpen' ? 'filled' : 'default'}
-            onClick={() => handleSort('liftsOpen')}
-            rightSection={getSortIcon('liftsOpen')}
-            size="sm"
-          >
-            Sort by Lifts Open
-          </Button>
-          <Button
-            variant={sortBy === 'liftsOpenPercent' ? 'filled' : 'default'}
-            onClick={() => handleSort('liftsOpenPercent')}
-            rightSection={getSortIcon('liftsOpenPercent')}
-            size="sm"
-          >
-            Sort by Lifts Open %
-          </Button>
-          <Button
-            variant={sortBy === 'runsOpen' ? 'filled' : 'default'}
-            onClick={() => handleSort('runsOpen')}
-            rightSection={getSortIcon('runsOpen')}
-            size="sm"
-          >
-            Sort by Runs Open
-          </Button>
-          <Button
-            variant={sortBy === 'runsOpenPercent' ? 'filled' : 'default'}
-            onClick={() => handleSort('runsOpenPercent')}
-            rightSection={getSortIcon('runsOpenPercent')}
-            size="sm"
-          >
-            Sort by Runs Open %
-          </Button>
-        </Group>
+        <Box>
+          <Text c="dimmed" size="sm" mb="xs" fw={500}>
+            Sort by
+          </Text>
+          <Group gap="xs">
+            <Chip
+              checked={sortBy === 'name'}
+              onClick={() => handleChipChange('name')}
+              variant="outline"
+              radius="sm"
+            >
+              {getSortLabel('name', 'Name')}
+            </Chip>
+            <Chip
+              checked={sortBy === 'liftsOpen'}
+              onClick={() => handleChipChange('liftsOpen')}
+              variant="outline"
+              radius="sm"
+            >
+              {getSortLabel('liftsOpen', 'Lifts Open')}
+            </Chip>
+            <Chip
+              checked={sortBy === 'liftsOpenPercent'}
+              onClick={() => handleChipChange('liftsOpenPercent')}
+              variant="outline"
+              radius="sm"
+            >
+              {getSortLabel('liftsOpenPercent', 'Lifts Open %')}
+            </Chip>
+            <Chip
+              checked={sortBy === 'runsOpen'}
+              onClick={() => handleChipChange('runsOpen')}
+              variant="outline"
+              radius="sm"
+            >
+              {getSortLabel('runsOpen', 'Runs Open')}
+            </Chip>
+            <Chip
+              checked={sortBy === 'runsOpenPercent'}
+              onClick={() => handleChipChange('runsOpenPercent')}
+              variant="outline"
+              radius="sm"
+            >
+              {getSortLabel('runsOpenPercent', 'Runs Open %')}
+            </Chip>
+          </Group>
+        </Box>
 
         <Table.ScrollContainer minWidth={800}>
           <Table striped highlightOnHover withTableBorder withColumnBorders>

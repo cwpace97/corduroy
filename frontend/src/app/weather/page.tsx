@@ -10,13 +10,14 @@ import {
   Alert,
   Stack,
   Group,
-  SegmentedControl,
+  Chip,
   Box,
 } from '@mantine/core';
 import { IconAlertCircle, IconSnowflake } from '@tabler/icons-react';
 import { useState, useMemo } from 'react';
 import { GET_ALL_RESORT_WEATHER, GET_ALL_RESORT_FORECASTS } from '@/graphql/queries';
 import { WeatherCard, ResortWeatherData, ResortForecastData, DailyWeatherData } from '@/components/WeatherCard/WeatherCard';
+import { PASS_OPTIONS, getResortPass } from '@/lib/constants';
 
 interface GetAllResortWeatherData {
   allResortWeather: ResortWeatherData[];
@@ -78,6 +79,7 @@ export default function WeatherPage() {
     }
   );
   const [sortBy, setSortBy] = useState<SortOption>('forecast');
+  const [selectedPass, setSelectedPass] = useState<string>('all');
 
   // Create a map of resort name to forecast data for easy lookup
   const forecastMap = useMemo(() => {
@@ -91,7 +93,14 @@ export default function WeatherPage() {
   const sortedWeather = useMemo(() => {
     if (!data?.allResortWeather) return [];
     
-    const weatherData = [...data.allResortWeather];
+    // First filter by pass
+    let weatherData = [...data.allResortWeather];
+    if (selectedPass !== 'all') {
+      weatherData = weatherData.filter(weather => {
+        const pass = getResortPass(weather.resortName);
+        return pass === selectedPass;
+      });
+    }
     
     switch (sortBy) {
       case 'name':
@@ -117,7 +126,7 @@ export default function WeatherPage() {
       default:
         return weatherData;
     }
-  }, [data?.allResortWeather, sortBy, forecastMap]);
+  }, [data?.allResortWeather, sortBy, selectedPass, forecastMap]);
 
   if (loading || forecastsLoading) {
     return (
@@ -148,7 +157,7 @@ export default function WeatherPage() {
   const hasData = sortedWeather.length > 0;
 
   return (
-    <Container fluid px="xl" py="md">
+    <Container fluid px={{ base: 8, sm: 32 }} py="md">
       <Stack gap="md" mb="lg">
         <Group justify="space-between" align="flex-start" wrap="wrap">
           <Box>
@@ -161,21 +170,33 @@ export default function WeatherPage() {
           </Box>
         </Group>
 
-        <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <SegmentedControl
-            value={sortBy}
-            onChange={(value) => setSortBy(value as SortOption)}
-            data={[
-              { label: 'A-Z', value: 'name' },
-              { label: 'Snow Depth', value: 'depth' },
-              { label: 'Recent Snow', value: 'recent' },
-              { label: 'Forecast Snow', value: 'forecast' },
-            ]}
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              minWidth: 'fit-content',
-            }}
-          />
+        <Box>
+          <Text c="dimmed" size="sm" mb="xs" fw={500}>
+            Pass
+          </Text>
+          <Chip.Group value={selectedPass} onChange={(value) => setSelectedPass(value as string)}>
+            <Group gap="xs">
+              {PASS_OPTIONS.map(option => (
+                <Chip key={option.value} value={option.value} variant="outline" radius="sm">
+                  {option.label}
+                </Chip>
+              ))}
+            </Group>
+          </Chip.Group>
+        </Box>
+
+        <Box>
+          <Text c="dimmed" size="sm" mb="xs" fw={500}>
+            Sort by
+          </Text>
+          <Chip.Group value={sortBy} onChange={(value) => setSortBy(value as SortOption)}>
+            <Group gap="xs">
+              <Chip value="name" variant="outline" radius="sm">A-Z</Chip>
+              <Chip value="depth" variant="outline" radius="sm">Snow Depth</Chip>
+              <Chip value="recent" variant="outline" radius="sm">Recent Snow</Chip>
+              <Chip value="forecast" variant="outline" radius="sm">Forecast Snow</Chip>
+            </Group>
+          </Chip.Group>
         </Box>
       </Stack>
 

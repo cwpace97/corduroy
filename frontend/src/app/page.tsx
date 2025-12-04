@@ -11,13 +11,14 @@ import {
   Alert,
   Stack,
   Group,
-  SegmentedControl,
+  Chip,
   Box,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { GET_RESORTS_HOME } from '@/graphql/queries';
 import { ResortCard, Resort } from '@/components/ResortCard/ResortCard';
 import { WeatherTrend, DailyData } from '@/components/WeatherSummary/WeatherSummary';
+import { PASS_OPTIONS, getResortPass } from '@/lib/constants';
 
 interface StationInfo {
   stationName: string;
@@ -63,6 +64,7 @@ type SortOption = 'name' | 'baseDepth' | 'recentSnow' | 'forecastSnow' | 'lifts'
 export default function HomePage() {
   const { loading, error, data } = useQuery<GetResortsHomeData>(GET_RESORTS_HOME);
   const [sortBy, setSortBy] = useState<SortOption>('forecastSnow');
+  const [selectedPass, setSelectedPass] = useState<string>('all');
 
   // Normalize a resort name by removing spaces and converting to lowercase
   // This allows matching "arapahoebasin" with "Arapahoe Basin"
@@ -112,11 +114,18 @@ export default function HomePage() {
       || null;
   };
 
-  // Sort resorts based on selected option
+  // Filter and sort resorts based on selected options
   const sortedResorts = useMemo(() => {
     if (!data?.resortsHome) return [];
 
-    const resorts = [...data.resortsHome];
+    // First filter by pass
+    let resorts = [...data.resortsHome];
+    if (selectedPass !== 'all') {
+      resorts = resorts.filter(resort => {
+        const pass = getResortPass(resort.location);
+        return pass === selectedPass;
+      });
+    }
     
     // Helper to calculate 7-day forecast snow for a resort (inline to capture closure)
     const calcForecastSnow = (location: string): number => {
@@ -203,7 +212,7 @@ export default function HomePage() {
       default:
         return resorts;
     }
-  }, [data?.resortsHome, sortBy, weatherByResort, forecastByResort]);
+  }, [data?.resortsHome, sortBy, selectedPass, weatherByResort, forecastByResort]);
 
   if (loading) {
     return (
@@ -232,7 +241,7 @@ export default function HomePage() {
   }
 
   return (
-    <Container fluid px="xl" py="md">
+    <Container fluid px={{ base: 8, sm: 32 }} py="md">
       <Stack gap="md" mb="lg">
         <Group justify="space-between" align="flex-start" wrap="wrap">
           <Box>
@@ -245,23 +254,35 @@ export default function HomePage() {
           </Box>
         </Group>
 
-        <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <SegmentedControl
-            value={sortBy}
-            onChange={(value) => setSortBy(value as SortOption)}
-            data={[
-              { label: 'A-Z', value: 'name' },
-              { label: 'Runs', value: 'runs' },
-              { label: 'Lifts', value: 'lifts' },
-              { label: 'Base Depth', value: 'baseDepth' },
-              { label: 'Recent Snow', value: 'recentSnow' },
-              { label: 'Forecasted Snow', value: 'forecastSnow' },
-            ]}
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              minWidth: 'fit-content',
-            }}
-          />
+        <Box>
+          <Text c="dimmed" size="sm" mb="xs" fw={500}>
+            Pass
+          </Text>
+          <Chip.Group value={selectedPass} onChange={(value) => setSelectedPass(value as string)}>
+            <Group gap="xs">
+              {PASS_OPTIONS.map(option => (
+                <Chip key={option.value} value={option.value} variant="outline" radius="sm">
+                  {option.label}
+                </Chip>
+              ))}
+            </Group>
+          </Chip.Group>
+        </Box>
+
+        <Box>
+          <Text c="dimmed" size="sm" mb="xs" fw={500}>
+            Sort by
+          </Text>
+          <Chip.Group value={sortBy} onChange={(value) => setSortBy(value as SortOption)}>
+            <Group gap="xs">
+              <Chip value="name" variant="outline" radius="sm">A-Z</Chip>
+              <Chip value="runs" variant="outline" radius="sm">Runs</Chip>
+              <Chip value="lifts" variant="outline" radius="sm">Lifts</Chip>
+              <Chip value="baseDepth" variant="outline" radius="sm">Base Depth</Chip>
+              <Chip value="recentSnow" variant="outline" radius="sm">Recent Snow</Chip>
+              <Chip value="forecastSnow" variant="outline" radius="sm">Forecasted Snow</Chip>
+            </Group>
+          </Chip.Group>
         </Box>
       </Stack>
 

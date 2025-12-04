@@ -15,4 +15,3 @@ fi
 
 # Start the frontend server
 npm run dev
-
