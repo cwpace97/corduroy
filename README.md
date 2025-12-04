@@ -261,4 +261,3 @@ sudo nginx -t
 - The nginx configuration works with any platform that allows nginx installation
 - Ensure containers/services are accessible on localhost:3000 and localhost:8000
 - Update upstream definitions if using different ports or hostnames
-
