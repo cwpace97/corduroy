@@ -58,9 +58,8 @@ class ForecastCollector:
             params = {
                 "latitude": latitude,
                 "longitude": longitude,
-                "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,weather_code,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant",
+                "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,weather_code",
                 "temperature_unit": "fahrenheit",
-                "wind_speed_unit": "mph",
                 "precipitation_unit": "inch",
                 "timezone": "America/Denver",
                 "forecast_days": 7
@@ -86,9 +85,6 @@ class ForecastCollector:
         snowfall_sum = daily.get("snowfall_sum", [])
         precip_prob_max = daily.get("precipitation_probability_max", [])
         weather_code = daily.get("weather_code", [])
-        wind_speed_max = daily.get("wind_speed_10m_max", [])
-        wind_gust_max = daily.get("wind_gusts_10m_max", [])
-        wind_direction = daily.get("wind_direction_10m_dominant", [])
         
         for i, time_str in enumerate(times):
             # Parse date - times come as "YYYY-MM-DD" format
@@ -108,9 +104,6 @@ class ForecastCollector:
                 "snow_amount_in": snowfall_sum[i] if i < len(snowfall_sum) else None,
                 "precip_amount_in": precip_sum[i] if i < len(precip_sum) else None,
                 "precip_prob_pct": int(precip_prob_max[i]) if i < len(precip_prob_max) and precip_prob_max[i] is not None else None,
-                "wind_speed_mph": wind_speed_max[i] if i < len(wind_speed_max) else None,
-                "wind_direction_deg": int(wind_direction[i]) if i < len(wind_direction) and wind_direction[i] is not None else None,
-                "wind_gust_mph": wind_gust_max[i] if i < len(wind_gust_max) else None,
                 "conditions_text": conditions_text,
                 "icon_code": str(code) if code is not None else None,
             }
@@ -201,8 +194,7 @@ class ForecastCollector:
             columns = [
                 "resort_name", "source", "forecast_time", "valid_time",
                 "temp_high_f", "temp_low_f", "snow_amount_in", "precip_amount_in",
-                "precip_prob_pct", "wind_speed_mph", "wind_direction_deg",
-                "wind_gust_mph", "conditions_text", "icon_code"
+                "precip_prob_pct", "conditions_text", "icon_code"
             ]
             
             values = [
@@ -215,9 +207,6 @@ class ForecastCollector:
                 str(forecast['snow_amount_in']) if forecast['snow_amount_in'] is not None else "NULL",
                 str(forecast['precip_amount_in']) if forecast['precip_amount_in'] is not None else "NULL",
                 str(forecast['precip_prob_pct']) if forecast['precip_prob_pct'] is not None else "NULL",
-                str(forecast['wind_speed_mph']) if forecast['wind_speed_mph'] is not None else "NULL",
-                str(forecast['wind_direction_deg']) if forecast['wind_direction_deg'] is not None else "NULL",
-                str(forecast['wind_gust_mph']) if forecast['wind_gust_mph'] is not None else "NULL",
                 (f"'{forecast['conditions_text'].replace(chr(39), chr(39) * 2)}'" if forecast['conditions_text'] else "NULL"),
                 f"'{forecast['icon_code']}'" if forecast['icon_code'] else "NULL",
             ]

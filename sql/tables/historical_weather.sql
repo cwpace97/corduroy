@@ -1,17 +1,18 @@
 -- Table for historical weather observations from Open-Meteo API
--- Stores hourly temperature and precipitation data for resorts
+-- Stores daily temperature and precipitation data for resorts
 CREATE TABLE IF NOT EXISTS WEATHER_DATA.historical_weather (
     id SERIAL PRIMARY KEY,
     resort_name VARCHAR(100) NOT NULL,
     observation_date DATE NOT NULL,
-    observation_hour INTEGER NOT NULL,  -- 0-23
+    observation_hour INTEGER NOT NULL DEFAULT 0,  -- 0 for daily records
     
     -- Temperature (Fahrenheit)
-    temperature_f DECIMAL(5, 1),
+    temperature_f DECIMAL(5, 1),      -- Daily high temperature
+    temp_min_f DECIMAL(5, 1),         -- Daily low temperature
     
     -- Precipitation
-    precipitation_in DECIMAL(6, 3),  -- Hourly precipitation in inches
-    snowfall_in DECIMAL(6, 2),       -- Hourly snowfall in inches
+    precipitation_in DECIMAL(6, 3),   -- Daily precipitation in inches
+    snowfall_in DECIMAL(6, 2),        -- Daily snowfall in inches
     
     -- Metadata
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

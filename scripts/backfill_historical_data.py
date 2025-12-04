@@ -140,6 +140,7 @@ def backfill_historical_weather(conn, begin_date: str, end_date: str):
         daily = data.get("daily", {})
         times = daily.get("time", [])
         temp_max = daily.get("temperature_2m_max", [])
+        temp_min = daily.get("temperature_2m_min", [])
         precipitations = daily.get("precipitation_sum", [])
         snowfalls = daily.get("snowfall_sum", [])
         
@@ -148,21 +149,22 @@ def backfill_historical_weather(conn, begin_date: str, end_date: str):
             observation_date = time_str  # Already in YYYY-MM-DD format
             
             t_max = temp_max[i] if i < len(temp_max) and temp_max[i] is not None else None
+            t_min = temp_min[i] if i < len(temp_min) and temp_min[i] is not None else None
             precip = precipitations[i] if i < len(precipitations) and precipitations[i] is not None else None
             snow = snowfalls[i] if i < len(snowfalls) and snowfalls[i] is not None else None
             
             try:
                 # Insert daily record with hour=0 to represent the full day
-                # Store temp_max in temperature_f field
                 cursor.execute("""
                     INSERT INTO WEATHER_DATA.historical_weather 
-                        (resort_name, observation_date, observation_hour, temperature_f, precipitation_in, snowfall_in)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                        (resort_name, observation_date, observation_hour, temperature_f, temp_min_f, precipitation_in, snowfall_in)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (resort_name, observation_date, observation_hour) DO UPDATE SET
                         temperature_f = EXCLUDED.temperature_f,
+                        temp_min_f = EXCLUDED.temp_min_f,
                         precipitation_in = EXCLUDED.precipitation_in,
                         snowfall_in = EXCLUDED.snowfall_in
-                """, (resort_name, observation_date, 0, t_max, precip, snow))
+                """, (resort_name, observation_date, 0, t_max, t_min, precip, snow))
                 records += 1
             except Exception as e:
                 print(f"  ⚠️  Error inserting record: {str(e)[:50]}")
