@@ -15,12 +15,13 @@ import {
   Badge,
   Group,
   Box,
-  SegmentedControl,
+  Chip,
 } from '@mantine/core';
 import { IconAlertCircle, IconMapPin } from '@tabler/icons-react';
 import { GET_RESORTS } from '@/graphql/queries';
 import { Resort } from '@/components/ResortCard/ResortCard';
 import { RecentlyOpenedData } from '@/components/RecentlyOpened/RecentlyOpened';
+import { PASS_OPTIONS, getResortPass } from '@/lib/constants';
 
 interface GetResortsData {
   resorts: Resort[];
@@ -39,7 +40,8 @@ const TIME_PERIOD_OPTIONS: { value: TimePeriodFilter; label: string }[] = [
 
 export default function RecentsPage() {
   const { loading, error, data } = useQuery<GetResortsData>(GET_RESORTS);
-  const [selectedResort, setSelectedResort] = useState<string>('all');
+  const [selectedPass, setSelectedPass] = useState<string>('all');
+  const [selectedResorts, setSelectedResorts] = useState<string[]>([]);
   const [selectedLiftCategory, setSelectedLiftCategory] = useState<string>('all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
   const [selectedTimePeriod, setSelectedTimePeriod] = useState<TimePeriodFilter>('all');
@@ -63,16 +65,13 @@ export default function RecentsPage() {
     return 'Other';
   };
 
-  // Get unique resort locations from the data
+  // Get unique resort locations from the data (for MultiSelect - no 'all' option needed)
   const resortOptions = useMemo(() => {
-    if (!data?.globalRecentlyOpened) return [{ value: 'all', label: 'All Resorts' }];
+    if (!data?.globalRecentlyOpened) return [];
     const liftsLocations = data.globalRecentlyOpened.lifts?.map(l => l.location) || [];
     const runsLocations = data.globalRecentlyOpened.runs?.map(r => r.location) || [];
     const locations = [...new Set([...liftsLocations, ...runsLocations])].sort();
-    return [
-      { value: 'all', label: 'All Resorts' },
-      ...locations.map(loc => ({ value: loc, label: loc }))
-    ];
+    return locations.map(loc => ({ value: loc, label: loc }));
   }, [data]);
 
   // Get unique lift categories from the data, sorted by lift size (descending)
@@ -187,7 +186,7 @@ export default function RecentsPage() {
     }
   };
 
-  // Filter lifts based on selected resort, lift category, and time period
+  // Filter lifts based on selected pass, resorts, lift category, and time period
   const filteredLifts = useMemo(() => {
     if (!data?.globalRecentlyOpened?.lifts) return [];
     
@@ -196,8 +195,15 @@ export default function RecentsPage() {
       if (!isWithinTimePeriod(lift.dateOpened, selectedTimePeriod)) {
         return false;
       }
-      // Resort filter
-      if (selectedResort !== 'all' && lift.location !== selectedResort) {
+      // Pass filter
+      if (selectedPass !== 'all') {
+        const pass = getResortPass(lift.location);
+        if (pass !== selectedPass) {
+          return false;
+        }
+      }
+      // Resort filter (multi-select: empty array = show all)
+      if (selectedResorts.length > 0 && !selectedResorts.includes(lift.location)) {
         return false;
       }
       // Lift category filter
@@ -209,9 +215,9 @@ export default function RecentsPage() {
       }
       return true;
     });
-  }, [data, selectedResort, selectedLiftCategory, selectedTimePeriod]);
+  }, [data, selectedPass, selectedResorts, selectedLiftCategory, selectedTimePeriod]);
 
-  // Filter runs based on selected resort, difficulty, and time period
+  // Filter runs based on selected pass, resorts, difficulty, and time period
   const filteredRuns = useMemo(() => {
     if (!data?.globalRecentlyOpened?.runs) return [];
     
@@ -220,8 +226,15 @@ export default function RecentsPage() {
       if (!isWithinTimePeriod(run.dateOpened, selectedTimePeriod)) {
         return false;
       }
-      // Resort filter
-      if (selectedResort !== 'all' && run.location !== selectedResort) {
+      // Pass filter
+      if (selectedPass !== 'all') {
+        const pass = getResortPass(run.location);
+        if (pass !== selectedPass) {
+          return false;
+        }
+      }
+      // Resort filter (multi-select: empty array = show all)
+      if (selectedResorts.length > 0 && !selectedResorts.includes(run.location)) {
         return false;
       }
       // Difficulty filter
@@ -233,7 +246,7 @@ export default function RecentsPage() {
       }
       return true;
     });
-  }, [data, selectedResort, selectedDifficulty, selectedTimePeriod]);
+  }, [data, selectedPass, selectedResorts, selectedDifficulty, selectedTimePeriod]);
 
   const getDifficultyColor = (difficulty: string | null): string => {
     if (!difficulty) return 'gray';
@@ -286,10 +299,10 @@ export default function RecentsPage() {
   }
 
   const hasData = filteredLifts.length > 0 || filteredRuns.length > 0;
-  const hasActiveFilters = selectedResort !== 'all' || selectedLiftCategory !== 'all' || selectedDifficulty !== 'all' || selectedTimePeriod !== 'all';
+  const hasActiveFilters = selectedPass !== 'all' || selectedResorts.length > 0 || selectedLiftCategory !== 'all' || selectedDifficulty !== 'all' || selectedTimePeriod !== 'all';
 
   return (
-    <Container fluid px="xl" py="md">
+    <Container fluid px={{ base: 8, sm: 32 }} py="md">
       <Title order={1} c="white" mb="md">
         Recently Opened
       </Title>
@@ -299,76 +312,84 @@ export default function RecentsPage() {
 
       {/* Filters Section */}
       <Stack gap="md" mb="lg">
-        {/* Time Period Filter */}
+        {/* Time Period Filter - Single Select */}
         <Box>
           <Text c="dimmed" size="sm" mb="xs" fw={500}>
             Time Opened
           </Text>
-          <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <SegmentedControl
-              value={selectedTimePeriod}
-              onChange={(value) => setSelectedTimePeriod(value as TimePeriodFilter)}
-              data={TIME_PERIOD_OPTIONS}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                minWidth: 'fit-content',
-              }}
-            />
-          </Box>
+          <Chip.Group value={selectedTimePeriod} onChange={(value) => setSelectedTimePeriod(value as TimePeriodFilter)}>
+            <Group gap="xs">
+              {TIME_PERIOD_OPTIONS.map(option => (
+                <Chip key={option.value} value={option.value} variant="outline" radius="sm">
+                  {option.label}
+                </Chip>
+              ))}
+            </Group>
+          </Chip.Group>
         </Box>
 
-        {/* Resort Filter */}
+        {/* Pass Filter - Single Select */}
         <Box>
           <Text c="dimmed" size="sm" mb="xs" fw={500}>
-            Resort
+            Pass
           </Text>
-          <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <SegmentedControl
-              value={selectedResort}
-              onChange={setSelectedResort}
-              data={resortOptions}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                minWidth: 'fit-content',
-              }}
-            />
-          </Box>
+          <Chip.Group value={selectedPass} onChange={(value) => setSelectedPass(value as string)}>
+            <Group gap="xs">
+              {PASS_OPTIONS.map(option => (
+                <Chip key={option.value} value={option.value} variant="outline" radius="sm">
+                  {option.label}
+                </Chip>
+              ))}
+            </Group>
+          </Chip.Group>
         </Box>
 
-        {/* Lift Category Filter */}
+        {/* Resort Filter - Multi Select Chips (purple to distinguish from single-select) */}
+        <Box>
+          <Text c="dimmed" size="sm" mb="xs" fw={500}>
+            Resorts {selectedResorts.length > 0 && `(${selectedResorts.length} selected)`}
+          </Text>
+          <Chip.Group multiple value={selectedResorts} onChange={setSelectedResorts}>
+            <Group gap="xs">
+              {resortOptions.map(option => (
+                <Chip key={option.value} value={option.value} variant="outline" radius="sm" color="violet">
+                  {option.label}
+                </Chip>
+              ))}
+            </Group>
+          </Chip.Group>
+        </Box>
+
+        {/* Lift Category Filter - Single Select */}
         <Box>
           <Text c="dimmed" size="sm" mb="xs" fw={500}>
             Lift Category
           </Text>
-          <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <SegmentedControl
-              value={selectedLiftCategory}
-              onChange={setSelectedLiftCategory}
-              data={liftCategoryOptions}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                minWidth: 'fit-content',
-              }}
-            />
-          </Box>
+          <Chip.Group value={selectedLiftCategory} onChange={(value) => setSelectedLiftCategory(value as string)}>
+            <Group gap="xs">
+              {liftCategoryOptions.map(option => (
+                <Chip key={option.value} value={option.value} variant="outline" radius="sm">
+                  {option.label}
+                </Chip>
+              ))}
+            </Group>
+          </Chip.Group>
         </Box>
 
-        {/* Run Difficulty Filter */}
+        {/* Run Difficulty Filter - Single Select */}
         <Box>
           <Text c="dimmed" size="sm" mb="xs" fw={500}>
             Run Difficulty
           </Text>
-          <Box style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <SegmentedControl
-              value={selectedDifficulty}
-              onChange={setSelectedDifficulty}
-              data={difficultyOptions}
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                minWidth: 'fit-content',
-              }}
-            />
-          </Box>
+          <Chip.Group value={selectedDifficulty} onChange={(value) => setSelectedDifficulty(value as string)}>
+            <Group gap="xs">
+              {difficultyOptions.map(option => (
+                <Chip key={option.value} value={option.value} variant="outline" radius="sm">
+                  {option.label}
+                </Chip>
+              ))}
+            </Group>
+          </Chip.Group>
         </Box>
 
         {hasActiveFilters && (

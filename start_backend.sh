@@ -32,4 +32,3 @@ echo "   ${DATABASE_URL%%@*}@localhost:${DATABASE_URL##*localhost:}"
 
 # Start the backend server
 python -m uvicorn backend.server:app --reload --host 0.0.0.0 --port 8000
-

@@ -51,15 +51,15 @@ class ForecastCollector:
         return coordinates
     
     def _fetch_open_meteo_forecast(self, latitude: float, longitude: float) -> Optional[Dict[str, Any]]:
-        """Fetch forecast from Open-Meteo API."""
+        """Fetch forecast from Open-Meteo API with daily aggregates in Denver timezone."""
         try:
+            # Request daily data only - properly aggregated in America/Denver timezone
+            # This ensures snowfall_sum is the true daily total, not hourly values
             params = {
                 "latitude": latitude,
                 "longitude": longitude,
-                "hourly": "temperature_2m,precipitation_probability,precipitation,snowfall,weathercode,windspeed_10m,winddirection_10m,windgusts_10m",
-                "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,weathercode",
+                "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum,precipitation_probability_max,weather_code",
                 "temperature_unit": "fahrenheit",
-                "windspeed_unit": "mph",
                 "precipitation_unit": "inch",
                 "timezone": "America/Denver",
                 "forecast_days": 7
@@ -74,7 +74,7 @@ class ForecastCollector:
             return None
     
     def _parse_open_meteo_forecast(self, forecast_data: Dict[str, Any], resort_name: str, forecast_time: datetime) -> List[Dict[str, Any]]:
-        """Parse Open-Meteo forecast data into normalized format."""
+        """Parse Open-Meteo daily forecast data into normalized format."""
         forecasts = []
         
         daily = forecast_data.get("daily", {})
@@ -84,43 +84,15 @@ class ForecastCollector:
         precip_sum = daily.get("precipitation_sum", [])
         snowfall_sum = daily.get("snowfall_sum", [])
         precip_prob_max = daily.get("precipitation_probability_max", [])
-        weathercode = daily.get("weathercode", [])
-        
-        # Get hourly data for wind (use average for the day)
-        hourly = forecast_data.get("hourly", {})
-        hourly_times = hourly.get("time", [])
-        hourly_windspeed = hourly.get("windspeed_10m", [])
-        hourly_winddir = hourly.get("winddirection_10m", [])
-        hourly_windgusts = hourly.get("windgusts_10m", [])
+        weather_code = daily.get("weather_code", [])
         
         for i, time_str in enumerate(times):
-            # Parse date
-            valid_date = datetime.fromisoformat(time_str.replace("T00:00", ""))
+            # Parse date - times come as "YYYY-MM-DD" format
+            valid_date = datetime.fromisoformat(time_str)
             
-            # Calculate average wind for this day from hourly data
-            day_start_idx = None
-            day_end_idx = None
-            for j, ht in enumerate(hourly_times):
-                ht_date = datetime.fromisoformat(ht.replace("T", " "))
-                if ht_date.date() == valid_date.date():
-                    if day_start_idx is None:
-                        day_start_idx = j
-                    day_end_idx = j
-            
-            wind_speed = None
-            wind_direction = None
-            wind_gust = None
-            if day_start_idx is not None and day_end_idx is not None:
-                day_winds = hourly_windspeed[day_start_idx:day_end_idx+1]
-                day_winddirs = hourly_winddir[day_start_idx:day_end_idx+1]
-                day_gusts = hourly_windgusts[day_start_idx:day_end_idx+1]
-                
-                wind_speed = sum(day_winds) / len(day_winds) if day_winds else None
-                wind_direction = self._calculate_average_wind_direction(day_winddirs) if day_winddirs else None
-                wind_gust = max(day_gusts) if day_gusts else None
-            
-            # Map weathercode to conditions text
-            conditions_text = self._map_weathercode(weathercode[i] if i < len(weathercode) else None)
+            # Map weather_code to conditions text
+            code = weather_code[i] if i < len(weather_code) else None
+            conditions_text = self._map_weathercode(code)
             
             forecast = {
                 "resort_name": resort_name,
@@ -131,31 +103,14 @@ class ForecastCollector:
                 "temp_low_f": temp_min[i] if i < len(temp_min) else None,
                 "snow_amount_in": snowfall_sum[i] if i < len(snowfall_sum) else None,
                 "precip_amount_in": precip_sum[i] if i < len(precip_sum) else None,
-                "precip_prob_pct": int(precip_prob_max[i]) if i < len(precip_prob_max) else None,
-                "wind_speed_mph": wind_speed,
-                "wind_direction_deg": int(wind_direction) if wind_direction else None,
-                "wind_gust_mph": wind_gust,
+                "precip_prob_pct": int(precip_prob_max[i]) if i < len(precip_prob_max) and precip_prob_max[i] is not None else None,
                 "conditions_text": conditions_text,
-                "icon_code": str(weathercode[i]) if i < len(weathercode) else None,
+                "icon_code": str(code) if code is not None else None,
             }
             
             forecasts.append(forecast)
         
         return forecasts
-    
-    def _calculate_average_wind_direction(self, directions: List[float]) -> float:
-        """Calculate average wind direction (handles circular nature of degrees)."""
-        if not directions:
-            return None
-        
-        import math
-        sin_sum = sum(math.sin(math.radians(d)) for d in directions)
-        cos_sum = sum(math.cos(math.radians(d)) for d in directions)
-        
-        avg_rad = math.atan2(sin_sum / len(directions), cos_sum / len(directions))
-        avg_deg = math.degrees(avg_rad)
-        
-        return avg_deg if avg_deg >= 0 else avg_deg + 360
     
     def _map_weathercode(self, code: Optional[int]) -> str:
         """Map WMO weather code to human-readable conditions."""
@@ -239,8 +194,7 @@ class ForecastCollector:
             columns = [
                 "resort_name", "source", "forecast_time", "valid_time",
                 "temp_high_f", "temp_low_f", "snow_amount_in", "precip_amount_in",
-                "precip_prob_pct", "wind_speed_mph", "wind_direction_deg",
-                "wind_gust_mph", "conditions_text", "icon_code"
+                "precip_prob_pct", "conditions_text", "icon_code"
             ]
             
             values = [
@@ -253,9 +207,6 @@ class ForecastCollector:
                 str(forecast['snow_amount_in']) if forecast['snow_amount_in'] is not None else "NULL",
                 str(forecast['precip_amount_in']) if forecast['precip_amount_in'] is not None else "NULL",
                 str(forecast['precip_prob_pct']) if forecast['precip_prob_pct'] is not None else "NULL",
-                str(forecast['wind_speed_mph']) if forecast['wind_speed_mph'] is not None else "NULL",
-                str(forecast['wind_direction_deg']) if forecast['wind_direction_deg'] is not None else "NULL",
-                str(forecast['wind_gust_mph']) if forecast['wind_gust_mph'] is not None else "NULL",
                 (f"'{forecast['conditions_text'].replace(chr(39), chr(39) * 2)}'" if forecast['conditions_text'] else "NULL"),
                 f"'{forecast['icon_code']}'" if forecast['icon_code'] else "NULL",
             ]

@@ -57,7 +57,7 @@ lifts_history AS (
     FROM (
         SELECT location, updated_date, open_count
         FROM SKI_DATA.v_lifts_history
-        WHERE updated_date::date >= CURRENT_DATE - INTERVAL '7 days'
+        WHERE updated_date::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Denver')::date - INTERVAL '7 days'
     ) sub
     GROUP BY location
 ),
@@ -71,7 +71,7 @@ runs_history AS (
     FROM (
         SELECT location, updated_date, open_count
         FROM SKI_DATA.v_runs_history
-        WHERE updated_date::date >= CURRENT_DATE - INTERVAL '7 days'
+        WHERE updated_date::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Denver')::date - INTERVAL '7 days'
     ) sub
     GROUP BY location
 ),

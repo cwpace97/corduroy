@@ -89,13 +89,13 @@ def get_db_connection():
 
 
 def fetch_historical_weather(latitude: float, longitude: float, start_date: str, end_date: str):
-    """Fetch historical hourly weather data from Open-Meteo Archive API."""
+    """Fetch historical daily weather data from Open-Meteo Archive API."""
     params = {
         "latitude": latitude,
         "longitude": longitude,
         "start_date": start_date,
         "end_date": end_date,
-        "hourly": "temperature_2m,precipitation,snowfall",
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum",
         "temperature_unit": "fahrenheit",
         "precipitation_unit": "inch",
         "timezone": "America/Denver",
@@ -111,10 +111,10 @@ def fetch_historical_weather(latitude: float, longitude: float, start_date: str,
 
 
 def backfill_historical_weather(conn, begin_date: str, end_date: str):
-    """Backfill historical weather data from Open-Meteo."""
+    """Backfill historical weather data from Open-Meteo using daily aggregates."""
     print()
     print("=" * 60)
-    print("Backfilling Historical Weather Data (Open-Meteo)")
+    print("Backfilling Historical Weather Data (Open-Meteo Daily)")
     print("=" * 60)
     print(f"Date Range: {begin_date} to {end_date}")
     print(f"Resorts: {len(RESORT_COORDINATES)}")
@@ -137,38 +137,40 @@ def backfill_historical_weather(conn, begin_date: str, end_date: str):
             print(f"  ⚠️  No data received")
             continue
         
-        hourly = data.get("hourly", {})
-        times = hourly.get("time", [])
-        temperatures = hourly.get("temperature_2m", [])
-        precipitations = hourly.get("precipitation", [])
-        snowfalls = hourly.get("snowfall", [])
+        daily = data.get("daily", {})
+        times = daily.get("time", [])
+        temp_max = daily.get("temperature_2m_max", [])
+        temp_min = daily.get("temperature_2m_min", [])
+        precipitations = daily.get("precipitation_sum", [])
+        snowfalls = daily.get("snowfall_sum", [])
         
         records = 0
         for i, time_str in enumerate(times):
-            dt = datetime.fromisoformat(time_str)
-            observation_date = dt.strftime("%Y-%m-%d")
-            observation_hour = dt.hour
+            observation_date = time_str  # Already in YYYY-MM-DD format
             
-            temp = temperatures[i] if i < len(temperatures) and temperatures[i] is not None else None
+            t_max = temp_max[i] if i < len(temp_max) and temp_max[i] is not None else None
+            t_min = temp_min[i] if i < len(temp_min) and temp_min[i] is not None else None
             precip = precipitations[i] if i < len(precipitations) and precipitations[i] is not None else None
             snow = snowfalls[i] if i < len(snowfalls) and snowfalls[i] is not None else None
             
             try:
+                # Insert daily record with hour=0 to represent the full day
                 cursor.execute("""
                     INSERT INTO WEATHER_DATA.historical_weather 
-                        (resort_name, observation_date, observation_hour, temperature_f, precipitation_in, snowfall_in)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                        (resort_name, observation_date, observation_hour, temperature_f, temp_min_f, precipitation_in, snowfall_in)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (resort_name, observation_date, observation_hour) DO UPDATE SET
                         temperature_f = EXCLUDED.temperature_f,
+                        temp_min_f = EXCLUDED.temp_min_f,
                         precipitation_in = EXCLUDED.precipitation_in,
                         snowfall_in = EXCLUDED.snowfall_in
-                """, (resort_name, observation_date, observation_hour, temp, precip, snow))
+                """, (resort_name, observation_date, 0, t_max, t_min, precip, snow))
                 records += 1
             except Exception as e:
                 print(f"  ⚠️  Error inserting record: {str(e)[:50]}")
         
         conn.commit()
-        print(f"  ✅ Inserted {records} records")
+        print(f"  ✅ Inserted {records} daily records")
         total_records += records
     
     print()
