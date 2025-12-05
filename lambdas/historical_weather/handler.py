@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
 Historical Weather Lambda Handler
-Runs once daily, fetching hourly temperature and precipitation data from Open-Meteo
+Runs once daily, fetching daily temperature (high/low) and precipitation data from Open-Meteo
 for the previous 3 days (not including today).
+
+Uses daily aggregates (temperature_2m_max, temperature_2m_min) to properly capture
+daily high and low temperatures, matching the backfill script behavior.
 """
 
 import os
@@ -53,7 +56,9 @@ def fetch_historical_weather(
     end_date: str
 ) -> Optional[Dict[str, Any]]:
     """
-    Fetch historical hourly weather data from Open-Meteo Archive API.
+    Fetch historical daily weather data from Open-Meteo Archive API.
+    
+    Uses daily aggregates to get proper high/low temperatures for each day.
     
     Args:
         latitude: Resort latitude
@@ -69,7 +74,7 @@ def fetch_historical_weather(
         "longitude": longitude,
         "start_date": start_date,
         "end_date": end_date,
-        "hourly": "temperature_2m,precipitation,snowfall",
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum",
         "temperature_unit": "fahrenheit",
         "precipitation_unit": "inch",
         "timezone": "America/Denver",
@@ -88,41 +93,47 @@ def generate_sql_inserts(resort_name: str, data: Dict[str, Any]) -> List[str]:
     """
     Generate SQL INSERT statements for historical weather data.
     
+    Uses daily aggregates from Open-Meteo to properly capture high/low temps.
+    Stores as observation_hour=0 to represent the full day's data.
+    
     Args:
         resort_name: Name of the resort
-        data: API response data from Open-Meteo
+        data: API response data from Open-Meteo (daily format)
     
     Returns:
         List of SQL INSERT statements
     """
     inserts = []
     
-    hourly = data.get("hourly", {})
-    times = hourly.get("time", [])
-    temperatures = hourly.get("temperature_2m", [])
-    precipitations = hourly.get("precipitation", [])
-    snowfalls = hourly.get("snowfall", [])
+    daily = data.get("daily", {})
+    times = daily.get("time", [])
+    temp_max = daily.get("temperature_2m_max", [])
+    temp_min = daily.get("temperature_2m_min", [])
+    precipitations = daily.get("precipitation_sum", [])
+    snowfalls = daily.get("snowfall_sum", [])
     
     for i, time_str in enumerate(times):
-        # Parse datetime: format is "2024-12-01T00:00"
-        dt = datetime.fromisoformat(time_str)
-        observation_date = dt.strftime("%Y-%m-%d")
-        observation_hour = dt.hour
+        # time_str is already in YYYY-MM-DD format for daily data
+        observation_date = time_str
         
-        temp = temperatures[i] if i < len(temperatures) and temperatures[i] is not None else None
+        t_max = temp_max[i] if i < len(temp_max) and temp_max[i] is not None else None
+        t_min = temp_min[i] if i < len(temp_min) and temp_min[i] is not None else None
         precip = precipitations[i] if i < len(precipitations) and precipitations[i] is not None else None
         snow = snowfalls[i] if i < len(snowfalls) and snowfalls[i] is not None else None
         
         # Build INSERT statement with upsert
-        temp_val = str(temp) if temp is not None else "NULL"
+        t_max_val = str(t_max) if t_max is not None else "NULL"
+        t_min_val = str(t_min) if t_min is not None else "NULL"
         precip_val = str(precip) if precip is not None else "NULL"
         snow_val = str(snow) if snow is not None else "NULL"
         
+        # Insert daily record with hour=0 to represent the full day
         insert = f"""INSERT INTO WEATHER_DATA.historical_weather 
-    (resort_name, observation_date, observation_hour, temperature_f, precipitation_in, snowfall_in)
-VALUES ('{resort_name}', '{observation_date}', {observation_hour}, {temp_val}, {precip_val}, {snow_val})
+    (resort_name, observation_date, observation_hour, temperature_f, temp_min_f, precipitation_in, snowfall_in)
+VALUES ('{resort_name}', '{observation_date}', 0, {t_max_val}, {t_min_val}, {precip_val}, {snow_val})
 ON CONFLICT (resort_name, observation_date, observation_hour) DO UPDATE SET
     temperature_f = EXCLUDED.temperature_f,
+    temp_min_f = EXCLUDED.temp_min_f,
     precipitation_in = EXCLUDED.precipitation_in,
     snowfall_in = EXCLUDED.snowfall_in;"""
         

@@ -16,7 +16,7 @@ import {
 import { IconAlertCircle, IconSnowflake } from '@tabler/icons-react';
 import { useState, useMemo } from 'react';
 import { GET_ALL_RESORT_WEATHER, GET_ALL_RESORT_FORECASTS } from '@/graphql/queries';
-import { WeatherCard, ResortWeatherData, ResortForecastData, DailyWeatherData } from '@/components/WeatherCard/WeatherCard';
+import { WeatherCard, ResortWeatherData, ResortForecastData } from '@/components/WeatherCard/WeatherCard';
 import { PASS_OPTIONS, getResortPass } from '@/lib/constants';
 
 interface GetAllResortWeatherData {
@@ -29,25 +29,13 @@ interface GetAllResortForecastsData {
 
 type SortOption = 'name' | 'depth' | 'recent' | 'forecast';
 
-// Helper to calculate recent snowfall from daily data
-const calculateRecentSnowfall = (dailyData: DailyWeatherData[]): number => {
-  if (!dailyData || dailyData.length < 2) return 0;
+// Helper to calculate recent snowfall from historical weather data (Open-Meteo snowfall totals)
+const calculateRecentSnowfall = (weather: ResortWeatherData): number => {
+  if (!weather.historicalWeather) return 0;
   
-  const sortedData = [...dailyData].sort((a, b) => a.date.localeCompare(b.date));
-  let totalSnowfall = 0;
-  
-  for (let i = 1; i < sortedData.length; i++) {
-    const prevDepth = sortedData[i - 1].snowDepthAvgIn;
-    const currDepth = sortedData[i].snowDepthAvgIn;
-    if (prevDepth !== null && currDepth !== null) {
-      const change = currDepth - prevDepth;
-      if (change > 0) {
-        totalSnowfall += change;
-      }
-    }
-  }
-  
-  return totalSnowfall;
+  return weather.historicalWeather
+    .filter(h => h.snowfallTotalIn !== null && h.snowfallTotalIn > 0)
+    .reduce((sum, h) => sum + (h.snowfallTotalIn ?? 0), 0);
 };
 
 // Helper to calculate forecast snow total
@@ -113,8 +101,8 @@ export default function WeatherPage() {
         });
       case 'recent':
         return weatherData.sort((a, b) => {
-          const aRecent = calculateRecentSnowfall(a.dailyData);
-          const bRecent = calculateRecentSnowfall(b.dailyData);
+          const aRecent = calculateRecentSnowfall(a);
+          const bRecent = calculateRecentSnowfall(b);
           return bRecent - aRecent;
         });
       case 'forecast':
@@ -222,3 +210,4 @@ export default function WeatherPage() {
     </Container>
   );
 }
+
